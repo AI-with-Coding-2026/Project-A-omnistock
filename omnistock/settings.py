@@ -13,6 +13,7 @@ import pymysql
 pymysql.install_as_MySQLdb()
 from pathlib import Path
 from decouple import config
+print("DB_NAME from config:", config('DB_NAME', default='NOT SET'))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -77,9 +78,9 @@ WSGI_APPLICATION = 'omnistock.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
+        'NAME': config('DB_NAME', default='omnistock'),
+        'USER': config('DB_USER', default='root'),
+        'PASSWORD': config('DB_PASSWORD', default='H@yper1202'),  # your MySQL password
         'HOST': 'localhost',
         'PORT': '3306',
     }
