@@ -1,0 +1,58 @@
+{% extends "core/base.html" %}
+
+{% block title %}Products{% endblock %}
+
+{% block content %}
+    <h1>Products</h1>
+    {% if messages %}
+        {% for message in messages %}
+            <p class="{{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    {% if is_admin %}
+        <p><a href="{% url 'product_create' %}">Create Product</a></p>
+    {% endif %}
+
+    <h2>Low-Stock Warnings</h2>
+    {% if low_stock %}
+        <ul>
+            {% for product in low_stock %}
+                <li>{{ product.name }} ({{ product.stock_quantity }} left)</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No low-stock items.</p>
+    {% endif %}
+
+    <h2>All Products</h2>
+    <table border="1" cellpadding="5">
+        <tr>
+            <th>Name</th>
+            <th>SKU</th>
+            <th>Stock</th>
+            <th>Reorder Level</th>
+            <th>Price</th>
+            <th>Supplier</th>
+            {% if is_admin %}
+                <th>Actions</th>
+            {% endif %}
+        </tr>
+        {% for product in products %}
+            <tr>
+                <td>{{ product.name }}</td>
+                <td>{{ product.sku }}</td>
+                <td>{{ product.stock_quantity }}{% if product.is_low_stock %} ⚠️ Low{% endif %}</td>
+                <td>{{ product.reorder_level }}</td>
+                <td>${{ product.price }}</td>
+                <td>{{ product.supplier|default:"—" }}</td>
+                {% if is_admin %}
+                    <td>
+                        <a href="{% url 'product_update' product.pk %}">Edit</a>
+                        <a href="{% url 'product_delete' product.pk %}">Delete</a>
+                    </td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+    </table>
+{% endblock %}

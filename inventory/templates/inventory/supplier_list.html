@@ -1,0 +1,42 @@
+{% extends "core/base.html" %}
+
+{% block title %}Suppliers{% endblock %}
+
+{% block content %}
+    <h1>Suppliers</h1>
+    {% if messages %}
+        {% for message in messages %}
+            <p class="{{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    {% if is_admin %}
+        <p><a href="{% url 'supplier_create' %}">Create Supplier</a></p>
+    {% endif %}
+
+    <table border="1" cellpadding="5">
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Address</th>
+            {% if is_admin %}
+                <th>Actions</th>
+            {% endif %}
+        </tr>
+        {% for supplier in suppliers %}
+            <tr>
+                <td>{{ supplier.name }}</td>
+                <td>{{ supplier.contact_email|default:"—" }}</td>
+                <td>{{ supplier.phone|default:"—" }}</td>
+                <td>{{ supplier.address|default:"—" }}</td>
+                {% if is_admin %}
+                    <td>
+                        <a href="{% url 'supplier_update' supplier.pk %}">Edit</a>
+                        <a href="{% url 'supplier_delete' supplier.pk %}">Delete</a>
+                    </td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+    </table>
+{% endblock %}
