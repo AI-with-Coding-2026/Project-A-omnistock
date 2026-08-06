@@ -13,7 +13,6 @@ import pymysql
 pymysql.install_as_MySQLdb()
 from pathlib import Path
 from decouple import config
-print("DB_NAME from config:", config('DB_NAME', default='NOT SET'))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,6 +33,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'core',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -80,7 +80,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': config('DB_NAME', default='omnistock'),
         'USER': config('DB_USER', default='root'),
-        'PASSWORD': config('DB_PASSWORD', default='H@yper1202'),  # your MySQL password
+        'PASSWORD': config('DB_PASSWORD', default=''),
         'HOST': 'localhost',
         'PORT': '3306',
     }
@@ -88,6 +88,8 @@ DATABASES = {
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
+
+AUTH_USER_MODEL = 'core.User'
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -115,6 +117,10 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/login/'
 
 
 # Static files (CSS, JavaScript, Images)
