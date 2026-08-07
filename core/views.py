@@ -7,7 +7,7 @@ from inventory.models import Product, Supplier
 from orders.models import Order
 
 from .models import User
-from .utils import staff_or_admin_required
+from .utils import staff_or_admin_required, admin_required
 
 
 class RoleBasedLoginView(LoginView):
@@ -66,3 +66,7 @@ def dashboard(request):
 
     return render(request, 'core/dashboard.html', context)
 
+
+@admin_required
+def reports_view(request):
+    return render(request, 'core/reports.html')

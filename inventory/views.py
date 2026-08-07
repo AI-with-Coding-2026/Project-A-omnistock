@@ -19,7 +19,7 @@ def product_list(request):
     })
 
 
-@admin_required
+@staff_or_admin_required
 def product_create(request):
     form = ProductForm(request.POST or None)
     if form.is_valid():
@@ -32,7 +32,7 @@ def product_create(request):
     })
 
 
-@admin_required
+@staff_or_admin_required
 def product_update(request, pk):
     product = get_object_or_404(Product, pk=pk)
     form = ProductForm(request.POST or None, instance=product)
@@ -65,7 +65,7 @@ def supplier_list(request):
     })
 
 
-@admin_required
+@staff_or_admin_required
 def supplier_create(request):
     form = SupplierForm(request.POST or None)
     if form.is_valid():
@@ -78,7 +78,7 @@ def supplier_create(request):
     })
 
 
-@admin_required
+@staff_or_admin_required
 def supplier_update(request, pk):
     supplier = get_object_or_404(Supplier, pk=pk)
     form = SupplierForm(request.POST or None, instance=supplier)

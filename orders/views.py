@@ -18,6 +18,12 @@ def order_list(request):
 
 
 @staff_or_admin_required
+def order_detail(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+    return render(request, 'orders/order_detail.html', {'order': order})
+
+
+@staff_or_admin_required
 @transaction.atomic
 def order_create(request):
     form = OrderForm(request.POST or None)
