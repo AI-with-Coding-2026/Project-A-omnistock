@@ -26,7 +26,7 @@ Before you start, make sure you have the following installed:
 
 - **Python** (3.10+ recommended)
 - **Git**
-- **MySQL** — see [Install MySQL](#1-install-mysql) below if you don't have it yet
+- **MySQL** — see [Install MySQL](#2-install-mysql) below if you don't have it yet
 
 
 
@@ -111,7 +111,7 @@ pip install -r requirements.txt
 
 ### 5. Configure Environment Variables
 
-Create a `.env` file inside the `venv` folder with the following content:
+Create a `.env` file in the **project root directory** (next to `manage.py`) with the following content:
 
 ```env
 DB_NAME=omnistock
@@ -153,7 +153,7 @@ python -m venv venv
 venv\Scripts\activate        # Windows
 # source venv/bin/activate   # macOS/Linux
 pip install -r requirements.txt
-# create .env in venv/ with your DB credentials
+# create .env in the project root (next to manage.py) with your DB credentials
 python manage.py migrate
 python manage.py runserver
 
@@ -231,14 +231,16 @@ There is currently no separate frontend build step — templates are rendered se
 
 Contributions are welcome. To contribute:
 
-1. Fork the repository and create a feature branch:
+1. All feature branches are pre-created on GitHub — check out your assigned branch as described in [WORKFLOW.md](WORKFLOW.md) rather than creating a new one:
   ```bash
-  git checkout -b feature/your-feature-name
+  git fetch origin
+  git checkout feature/[your-task-id]-[description]
+  git pull origin main
 
   ```
 2. Follow the [Installation](#getting-started) steps above to set up your local environment.
 3. Make your changes, following existing code style and adding tests where relevant.
 4. Run `python manage.py test` to confirm nothing is broken.
-5. Commit your changes and open a pull request describing what you changed and why.
+5. Commit your changes and open a pull request describing what you changed and why. See [WORKFLOW.md](WORKFLOW.md) for full commit, PR, and merge-conflict guidelines.
 
 For larger changes, please open an issue first to discuss what you'd like to change.
