@@ -6,12 +6,14 @@ from django.db.models import F, Sum
 from inventory.models import Product, Supplier
 from orders.models import Order
 
+from .forms import StyledLoginForm
 from .models import User
 from .utils import staff_or_admin_required
 
 
 class RoleBasedLoginView(LoginView):
     template_name = 'core/login.html'
+    authentication_form = StyledLoginForm
     redirect_authenticated_user = True
 
     def get_success_url(self):
@@ -19,7 +21,7 @@ class RoleBasedLoginView(LoginView):
 
 
 class RoleBasedLogoutView(LogoutView):
-    next_page = 'login'
+    next_page = "/login/"
 
 
 @staff_or_admin_required
@@ -65,4 +67,3 @@ def dashboard(request):
         context['description'] = 'View inventory and create orders.'
 
     return render(request, 'core/dashboard.html', context)
-
