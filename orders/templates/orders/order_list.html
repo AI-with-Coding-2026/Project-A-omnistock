@@ -14,10 +14,9 @@
 
     <table border="1" cellpadding="5">
         <tr>
-            <th>ID</th>
+            <th>Order #</th>
             <th>Customer</th>
-            <th>Product</th>
-            <th>Qty</th>
+            <th>Sales Rep</th>
             <th>Status</th>
             <th>Total</th>
             <th>Created</th>
@@ -25,16 +24,15 @@
         </tr>
         {% for order in orders %}
             <tr>
-                <td>{{ order.pk }}</td>
+                <td>{{ order.order_number }}</td>
                 <td>{{ order.customer_name }}</td>
-                <td>{{ order.product }}</td>
-                <td>{{ order.quantity }}</td>
+                <td>{{ order.user }}</td>
                 <td>{{ order.status }}</td>
-                <td>${{ order.total }}</td>
+                <td>${{ order.total_amount }}</td>
                 <td>{{ order.created_at }}</td>
                 <td>
                     <a href="{% url 'invoice_view' order.pk %}">Invoice</a>
-                    {% if is_admin and order.status == 'COMPLETED' %}
+                    {% if is_admin and order.status != 'cancelled' %}
                         | <a href="{% url 'order_cancel' order.pk %}">Cancel</a>
                     {% endif %}
                 </td>

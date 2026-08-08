@@ -1,14 +1,13 @@
 {% extends "core/base.html" %}
 
-{% block title %}Invoice #{{ order.pk }}{% endblock %}
+{% block title %}Invoice #{{ order.order_number }}{% endblock %}
 
 {% block content %}
     <h1>Invoice</h1>
-    <p><strong>Order #:</strong> {{ order.pk }}</p>
+    <p><strong>Order #:</strong> {{ order.order_number }}</p>
     <p><strong>Customer:</strong> {{ order.customer_name }}</p>
-    <p><strong>Product:</strong> {{ order.product }}</p>
-    <p><strong>Quantity:</strong> {{ order.quantity }}</p>
-    <p><strong>Total:</strong> ${{ order.total }}</p>
+    <p><strong>Sales Rep:</strong> {{ order.user }}</p>
+    <p><strong>Total:</strong> ${{ order.total_amount }}</p>
     <p><strong>Status:</strong> {{ order.status }}</p>
     <p><strong>Date:</strong> {{ order.created_at }}</p>
     <p><a href="{% url 'order_list' %}">Back to Orders</a></p>
