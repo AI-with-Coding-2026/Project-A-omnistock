@@ -10,7 +10,7 @@ from .models import Order
 
 @staff_or_admin_required
 def order_list(request):
-    orders = Order.objects.select_related('product').all()
+    orders = Order.objects.select_related('user').all()
     return render(request, 'orders/order_list.html', {
         'orders': orders,
         'is_admin': request.user.role == 'ADMIN',
@@ -23,19 +23,10 @@ def order_create(request):
     form = OrderForm(request.POST or None)
     if form.is_valid():
         order = form.save(commit=False)
-        product = order.product
-        if product.stock_quantity < order.quantity:
-            form.add_error(
-                'quantity',
-                f'Insufficient stock. Available: {product.stock_quantity}'
-            )
-        else:
-            order.status = Order.STATUS_COMPLETED
-            order.save()
-            product.stock_quantity -= order.quantity
-            product.save()
-            messages.success(request, 'Order created and stock deducted.')
-            return redirect('order_list')
+        order.user = request.user
+        order.save()
+        messages.success(request, 'Order created.')
+        return redirect('order_list')
     return render(request, 'orders/order_form.html', {
         'form': form,
         'title': 'Create Order',
@@ -46,15 +37,12 @@ def order_create(request):
 @transaction.atomic
 def order_cancel(request, pk):
     order = get_object_or_404(Order, pk=pk)
-    if order.status == Order.STATUS_COMPLETED:
-        product = order.product
-        product.stock_quantity += order.quantity
-        product.save()
+    if order.status in (Order.STATUS_PENDING, Order.STATUS_COMPLETED):
         order.status = Order.STATUS_CANCELLED
         order.save()
-        messages.success(request, 'Order cancelled and stock restored.')
+        messages.success(request, 'Order cancelled.')
     else:
-        messages.warning(request, 'Only completed orders can be cancelled.')
+        messages.warning(request, 'This order cannot be cancelled.')
     return redirect('order_list')
 
 

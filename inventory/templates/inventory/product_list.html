@@ -44,8 +44,8 @@
                 <td>{{ product.sku }}</td>
                 <td>{{ product.stock_quantity }}{% if product.is_low_stock %} ⚠️ Low{% endif %}</td>
                 <td>{{ product.reorder_level }}</td>
-                <td>${{ product.price }}</td>
-                <td>{{ product.supplier|default:"—" }}</td>
+                <td>${{ product.unit_price }}</td>
+                <td>{{ product.supplier }}</td>
                 {% if is_admin %}
                     <td>
                         <a href="{% url 'product_update' product.pk %}">Edit</a>
