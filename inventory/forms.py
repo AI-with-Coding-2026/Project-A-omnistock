@@ -12,4 +12,4 @@ class SupplierForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['name', 'sku', 'description', 'stock_quantity', 'reorder_level', 'price', 'supplier']
+        fields = ['name', 'sku', 'description', 'stock_quantity', 'reorder_level', 'unit_price', 'supplier']
