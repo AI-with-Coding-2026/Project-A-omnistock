@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Order, OrderItem
+from .models import Invoice, Order, OrderItem
 
 
 class OrderItemInline(admin.TabularInline):
@@ -20,3 +20,9 @@ class OrderAdmin(admin.ModelAdmin):
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ('id', 'order', 'product', 'quantity', 'unit_price')
     search_fields = ('order__order_number', 'product__name')
+
+
+@admin.register(Invoice)
+class InvoiceAdmin(admin.ModelAdmin):
+    list_display = ('invoice_number', 'order', 'issued_at')
+    search_fields = ('invoice_number', 'order__order_number')

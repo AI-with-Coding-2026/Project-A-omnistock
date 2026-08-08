@@ -8,6 +8,10 @@ def generate_order_number():
     return f'ORD-{uuid.uuid4().hex[:10].upper()}'
 
 
+def generate_invoice_number():
+    return f'INV-{uuid.uuid4().hex[:10].upper()}'
+
+
 class Order(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_COMPLETED = 'completed'
@@ -45,3 +49,12 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product} x{self.quantity} ({self.order.order_number})"
+
+
+class Invoice(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='invoice')
+    invoice_number = models.CharField(max_length=50, unique=True, default=generate_invoice_number)
+    issued_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.invoice_number
