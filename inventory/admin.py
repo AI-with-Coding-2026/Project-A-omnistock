@@ -5,8 +5,8 @@ from .models import Product, Supplier
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
-    list_display = ('name', 'contact_email', 'phone')
-    search_fields = ('name', 'contact_email')
+    list_display = ('name', 'email', 'phone')
+    search_fields = ('name', 'email')
 
 
 @admin.register(Product)
