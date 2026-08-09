@@ -5,12 +5,12 @@ from .models import Product, Supplier
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
-    list_display = ('name', 'contact_email', 'phone')
-    search_fields = ('name', 'contact_email')
+    list_display = ('name', 'email', 'phone')
+    search_fields = ('name', 'email')
 
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'sku', 'stock_quantity', 'reorder_level', 'price', 'is_low_stock', 'supplier')
+    list_display = ('name', 'sku', 'stock_quantity', 'reorder_level', 'unit_price', 'is_low_stock', 'supplier')
     list_filter = ('supplier',)
     search_fields = ('name', 'sku')

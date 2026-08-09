@@ -27,7 +27,7 @@
         {% for supplier in suppliers %}
             <tr>
                 <td>{{ supplier.name }}</td>
-                <td>{{ supplier.contact_email|default:"—" }}</td>
+                <td>{{ supplier.email|default:"—" }}</td>
                 <td>{{ supplier.phone|default:"—" }}</td>
                 <td>{{ supplier.address|default:"—" }}</td>
                 {% if is_admin %}
