@@ -17,7 +17,15 @@ class RoleBasedLoginView(LoginView):
     redirect_authenticated_user = True
 
     def get_success_url(self):
-        return reverse('dashboard')
+        user = self.request.user
+        if user.role == User.ROLE_ADMIN:
+            return reverse('dashboard')
+        elif user.role == User.ROLE_INVENTORY_MANAGER:
+            return reverse('product_list')
+        elif user.role == User.ROLE_SALES_REP:
+            return reverse('order_create')
+        else:
+            return reverse('dashboard')
 
 
 class RoleBasedLogoutView(LogoutView):
