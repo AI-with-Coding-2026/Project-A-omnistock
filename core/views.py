@@ -44,7 +44,7 @@ def dashboard(request):
     total_revenue = Order.objects.filter(
         status=Order.STATUS_COMPLETED
     ).aggregate(
-        total_revenue=Sum("total")
+        total_revenue=Sum("total_amount")
     )["total_revenue"] or 0
 
     products = Product.objects.select_related('supplier').all()
