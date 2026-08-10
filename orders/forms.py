@@ -14,9 +14,7 @@ BASE_INPUT = (
 class OrderForm(forms.ModelForm):
     class Meta:
         model = Order
-<<<<<<< HEAD
-        fields = ['customer_name']
-=======
+
         fields = ['customer_name', 'product', 'quantity']
 
     def __init__(self, *args, **kwargs):
@@ -24,4 +22,3 @@ class OrderForm(forms.ModelForm):
         for field in self.fields.values():
             existing = field.widget.attrs.get("class", "")
             field.widget.attrs["class"] = (existing + " " + BASE_INPUT).strip()
->>>>>>> 149ff5b826fc7ee115c3fbeb8b47c83de63f3c08
