@@ -1,19 +1,5 @@
 {% extends "core/base.html" %}
 
-<<<<<<< HEAD
-{% block title %}Invoice #{{ order.order_number }}{% endblock %}
-
-{% block content %}
-    <h1>Invoice</h1>
-    <p><strong>Order #:</strong> {{ order.order_number }}</p>
-    <p><strong>Customer:</strong> {{ order.customer_name }}</p>
-    <p><strong>Sales Rep:</strong> {{ order.user }}</p>
-    <p><strong>Total:</strong> ${{ order.total_amount }}</p>
-    <p><strong>Status:</strong> {{ order.status }}</p>
-    <p><strong>Date:</strong> {{ order.created_at }}</p>
-    <p><a href="{% url 'order_list' %}">Back to Orders</a></p>
-{% endblock %}
-=======
 {% block title %}Invoice #{{ order.pk }} - OmniStock{% endblock %}
 
 {% block page_title %}Invoice #{{ order.pk }}{% endblock %}
@@ -22,7 +8,7 @@
 
 <div class="max-w-3xl mx-auto">
 
-    <!-- Invoice Header -->
+    <!--Invoice Header-->
 
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 print:hidden">
 
@@ -276,4 +262,3 @@
 </div>
 
 {% endblock %}
->>>>>>> 149ff5b826fc7ee115c3fbeb8b47c83de63f3c08
