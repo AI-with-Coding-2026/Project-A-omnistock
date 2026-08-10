@@ -11,7 +11,7 @@ BASE_INPUT = (
 class OrderForm(forms.ModelForm):
     class Meta:
         model = Order
-        fields = ['customer_name', 'product', 'quantity']
+        fields = ['customer_name']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
