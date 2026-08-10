@@ -1,7 +1,5 @@
 from django import forms
-
 from .models import Order
-
 
 BASE_INPUT = (
     "w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm "
