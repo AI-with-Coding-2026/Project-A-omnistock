@@ -1,42 +1,80 @@
 {% extends "core/base.html" %}
 
-{% block title %}Suppliers{% endblock %}
+{% block title %}Suppliers - OmniStock{% endblock %}
+{% block page_title %}Suppliers{% endblock %}
 
 {% block content %}
-    <h1>Suppliers</h1>
+<div class="space-y-8">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-900">Suppliers</h2>
+            <p class="mt-1.5 text-gray-500">Manage supplier contacts and their product catalogues.</p>
+        </div>
+        {% if is_admin %}
+            <a href="{% url 'supplier_create' %}" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">
+                Add Supplier
+            </a>
+        {% endif %}
+    </div>
+
     {% if messages %}
         {% for message in messages %}
-            <p class="{{ message.tags }}">{{ message }}</p>
+            <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                {{ message }}
+            </div>
         {% endfor %}
     {% endif %}
 
-    {% if is_admin %}
-        <p><a href="{% url 'supplier_create' %}">Create Supplier</a></p>
-    {% endif %}
+    <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div class="flex items-center justify-between border-b border-gray-100 p-6">
+            <div>
+                <h3 class="font-semibold text-gray-900">All suppliers</h3>
+                <p class="mt-0.5 text-sm text-gray-500">{{ suppliers|length }} supplier{{ suppliers|length|pluralize }} available.</p>
+            </div>
+        </div>
 
-    <table border="1" cellpadding="5">
-        <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Address</th>
-            {% if is_admin %}
-                <th>Actions</th>
-            {% endif %}
-        </tr>
-        {% for supplier in suppliers %}
-            <tr>
-                <td>{{ supplier.name }}</td>
-                <td>{{ supplier.email|default:"—" }}</td>
-                <td>{{ supplier.phone|default:"—" }}</td>
-                <td>{{ supplier.address|default:"—" }}</td>
-                {% if is_admin %}
-                    <td>
-                        <a href="{% url 'supplier_update' supplier.pk %}">Edit</a>
-                        <a href="{% url 'supplier_delete' supplier.pk %}">Delete</a>
-                    </td>
-                {% endif %}
-            </tr>
-        {% endfor %}
-    </table>
+        {% if suppliers %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Supplier</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Address</th>
+                            <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Products</th>
+                            {% if is_admin %}
+                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 bg-white">
+                        {% for supplier in suppliers %}
+                            <tr class="transition hover:bg-gray-50">
+                                <td class="whitespace-nowrap px-6 py-4 font-semibold text-gray-900">{{ supplier.name }}</td>
+                                <td class="whitespace-nowrap px-6 py-4 text-gray-600">{{ supplier.email|default:"-" }}</td>
+                                <td class="whitespace-nowrap px-6 py-4 text-gray-600">{{ supplier.phone|default:"-" }}</td>
+                                <td class="max-w-xs px-6 py-4 text-gray-600">{{ supplier.address|default:"-" }}</td>
+                                <td class="whitespace-nowrap px-6 py-4 text-center">
+                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ supplier.products.count }}</span>
+                                </td>
+                                {% if is_admin %}
+                                    <td class="whitespace-nowrap px-6 py-4 text-right">
+                                        <a href="{% url 'supplier_update' supplier.pk %}" class="font-medium text-slate-700 hover:text-slate-950 hover:underline">Edit</a>
+                                        <a href="{% url 'supplier_delete' supplier.pk %}" class="ml-4 font-medium text-red-600 hover:text-red-800 hover:underline">Delete</a>
+                                    </td>
+                                {% endif %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-10 text-center">
+                <p class="font-medium text-gray-900">No suppliers yet.</p>
+                <p class="mt-1 text-sm text-gray-500">Add a supplier to connect products with your inventory sources.</p>
+            </div>
+        {% endif %}
+    </section>
+</div>
 {% endblock %}
