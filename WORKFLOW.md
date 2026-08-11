@@ -45,7 +45,7 @@ Locate your assigned Sprint 2 task below and checkout your pre-created branch:
  git fetch origin
  
  # 2. Switch to your assigned feature branch
- git checkout feature/[your-task-id]-[description]
+ git checkout feature/[your-s2-branch-name]
  
  # 3. Sync your branch with latest main
  git pull origin main
@@ -84,7 +84,7 @@ Locate your assigned Sprint 2 task below and checkout your pre-created branch:
  1. Go to **GitHub Repository** ➔ Click on **Pull Requests**.
  2. Open a new PR targeting the `main` branch.
  3. Include the testing note in the PR description explaining how you tested the feature.
- 4. Assign **Rayan** as a **Reviewer**.
+ 4. Assign **Rayan** and **Enzu** as a **Reviewer**.
  5. 🛑 **Do NOT merge your own PR.** Wait for review and approval.
  
  
