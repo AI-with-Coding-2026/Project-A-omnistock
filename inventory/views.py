@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -18,6 +19,18 @@ def product_list(request):
         'is_admin': request.user.role == 'ADMIN',
     })
 
+@staff_or_admin_required  #Added
+def product_index(request):
+    q = request.GET.get('q', '')
+    products = Product.objects.all()
+    if q:
+        products = products.filter(
+            Q(name__icontains=q) | Q(sku__icontains=q)
+        )
+    return render(request, 'inventory/product_index.html', {
+        'products': products,
+        'q': q,
+    })
 
 @admin_required
 def product_create(request):

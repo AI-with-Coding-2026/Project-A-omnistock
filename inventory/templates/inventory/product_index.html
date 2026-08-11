@@ -1,0 +1,27 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Products{% endblock %}
+{% block content %}
+<form method="get" class="mb-4">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by name or SKU">
+    <button type="submit">Search</button>
+</form>
+<table class="table-auto w-full">
+    <thead>
+        <tr>
+            <th>SKU</th><th>Name</th><th>Supplier</th><th>Unit Price</th><th>Stock</th><th>Reorder Level</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in products %}
+        <tr>
+            <td>{{ p.sku }}</td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.supplier.name }}</td>
+            <td>{{ p.unit_price }}</td>
+            <td>{{ p.stock_quantity }}</td>
+            <td>{{ p.reorder_level }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
