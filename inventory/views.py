@@ -67,11 +67,14 @@ def supplier_list(request):
 
 @admin_required
 def supplier_create(request):
-    form = SupplierForm(request.POST or None)
-    if form.is_valid():
-        form.save()
-        messages.success(request, 'Supplier created.')
-        return redirect('supplier_list')
+    if request.method == 'POST':
+        form = SupplierForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Supplier created.')
+            return redirect('supplier_list')
+    else:
+        form = SupplierForm()
     return render(request, 'inventory/supplier_form.html', {
         'form': form,
         'title': 'Create Supplier',
