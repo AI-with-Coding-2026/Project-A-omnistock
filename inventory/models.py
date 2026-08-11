@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.db.models import F
 
 class Supplier(models.Model):
     name = models.CharField(max_length=255)
@@ -37,6 +37,8 @@ class Product(models.Model):
     def __str__(self):
         return f'{self.name} ({self.sku})'
 
-    @property
-    def is_low_stock(self):
-        return self.stock_quantity <= self.reorder_level
+    @classmethod
+    def low_stock(cls):
+        return cls.objects.filter(
+            stock_quantity__lte=F('reorder_level')
+        )
