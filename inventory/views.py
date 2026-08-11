@@ -23,18 +23,26 @@ def product_list(request):
 def product_index(request):
     q = request.GET.get('q', '')
     supplier_id = request.GET.get('supplier')
+    min_price = request.GET.get('min_price')
+    max_price = request.GET.get('max_price')
     products = Product.objects.all()
     if q:
         products = products.filter(
             Q(name__icontains=q) | Q(sku__icontains=q))
     if supplier_id:
         products = products.filter(supplier_id=supplier_id)
+    if min_price:
+        products = products.filter(unit_price__gte=min_price)
+    if max_price:
+        products = products.filter(unit_price__lte=max_price)
     suppliers = Supplier.objects.all()
     return render(request, 'inventory/product_index.html', {
         'products': products,
         'q': q,
         'suppliers': suppliers,
         'selected_supplier': supplier_id,
+        'min_price': min_price,
+        'max_price': max_price,
     })
 
 @admin_required

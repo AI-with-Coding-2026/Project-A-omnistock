@@ -11,6 +11,8 @@
         </option>
         {% endfor %}
     </select>
+    <input type="number" step="0.01" name="min_price" value="{{ min_price }}" placeholder="Min price">
+    <input type="number" step="0.01" name="max_price" value="{{ max_price }}" placeholder="Max price">
     <button type="submit">Filter</button>
 </form>
 <table class="table-auto w-full">
