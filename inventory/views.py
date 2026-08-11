@@ -22,14 +22,19 @@ def product_list(request):
 @staff_or_admin_required  #Added
 def product_index(request):
     q = request.GET.get('q', '')
+    supplier_id = request.GET.get('supplier')
     products = Product.objects.all()
     if q:
         products = products.filter(
-            Q(name__icontains=q) | Q(sku__icontains=q)
-        )
+            Q(name__icontains=q) | Q(sku__icontains=q))
+    if supplier_id:
+        products = products.filter(supplier_id=supplier_id)
+    suppliers = Supplier.objects.all()
     return render(request, 'inventory/product_index.html', {
         'products': products,
         'q': q,
+        'suppliers': suppliers,
+        'selected_supplier': supplier_id,
     })
 
 @admin_required
