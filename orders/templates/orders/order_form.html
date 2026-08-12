@@ -30,12 +30,23 @@
                 </div>
             {% endfor %}
 
-            <div x-data="{ items: [{ product: '', qty: 1 }] }" class="space-y-3 pt-4 border-t">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Order Items</label>
+            {{ products|json_script:"products-data" }}
 
+            <div x-data="{
+                    items: [{ product: '', qty: 1, unitPrice: 0 }],
+                    priceMap: {},
+                    init() {
+                        const raw = JSON.parse(document.getElementById('products-data').textContent);
+                        raw.forEach(p => { this.priceMap[p.id] = parseFloat(p.unit_price); });
+                    },
+                    updatePrice(item) {
+                        item.unitPrice = this.priceMap[item.product] || 0;
+                    }
+                 }" class="space-y-3 pt-4 border-t">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Order Items</label>
                 <template x-for="(item, index) in items" :key="index">
                     <div class="flex gap-2 mb-2 items-center">
-                        <select :name="'items[][product]'" x-model="item.product"
+                        <select :name="'items[][product]'" x-model="item.product" @change="updatePrice(item)"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                             <option value="">Select product</option>
                             {% for product in products %}
@@ -44,12 +55,13 @@
                         </select>
                         <input type="number" min="1" :name="'items[][quantity]'" x-model="item.qty"
                                class="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                        <input type="text" :value="'$' + item.unitPrice.toFixed(2)" readonly
+                               class="w-24 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                         <button type="button" @click="items.splice(index, 1)"
                                 class="px-3 py-2 text-sm text-red-600 hover:text-red-800">Remove</button>
                     </div>
                 </template>
-
-                <button type="button" @click="items.push({ product: '', qty: 1 })"
+                <button type="button" @click="items.push({ product: '', qty: 1, unitPrice: 0 })"
                         class="px-4 py-2 text-sm font-medium text-slate-700 border border-gray-300 rounded-lg hover:bg-gray-50">
                     + Add item
                 </button>

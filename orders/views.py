@@ -21,7 +21,7 @@ def order_list(request):
 @staff_or_admin_required
 @transaction.atomic
 def order_create(request):
-    products = Product.objects.all()
+    products = list(Product.objects.values('id', 'name', 'sku', 'unit_price'))
     form = OrderForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
