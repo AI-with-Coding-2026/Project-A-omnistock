@@ -1,6 +1,7 @@
 from django.contrib import messages
+from django.db.models import F, BooleanField, Case, When, Value
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+
 
 from core.utils import admin_required, staff_or_admin_required
 
@@ -10,14 +11,24 @@ from .models import Product, Supplier
 
 @staff_or_admin_required
 def product_list(request):
-    products = Product.objects.select_related('supplier').all()
-    low_stock = [p for p in products if p.is_low_stock]
+    products = Product.objects.select_related('supplier').annotate(
+        is_low_stock=Case(
+            When(
+                stock_quantity__lte=F('reorder_level'),
+                then=Value(True)
+            ),
+            default=Value(False),
+            output_field=BooleanField(),
+        )
+    )
+
+    low_stock = products.filter(is_low_stock=True)
+
     return render(request, 'inventory/product_list.html', {
         'products': products,
         'low_stock': low_stock,
         'is_admin': request.user.role == 'ADMIN',
     })
-
 
 @admin_required
 def product_create(request):
