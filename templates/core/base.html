@@ -112,11 +112,11 @@
                         Products
                     </a>
 
-                    {% url 'supplier_list' as supplier_url %}
+                    {% url 'supplier_index' as supplier_url %}
                     <a href="{{ supplier_url }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                               transition-colors border-l-2
-                              {% if request.resolver_match.url_name == 'supplier_list' %}
+                              {% if request.resolver_match.url_name == 'supplier_index' %}
                                   bg-slate-800 border-slate-100 text-white
                               {% else %}
                                   border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
@@ -150,11 +150,11 @@
                         Products (View)
                     </a>
 
-                    {% url 'supplier_list' as supplier_url %}
+                    {% url 'supplier_index' as supplier_url %}
                     <a href="{{ supplier_url }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                               transition-colors border-l-2
-                              {% if request.resolver_match.url_name == 'supplier_list' %}
+                              {% if request.resolver_match.url_name == 'supplier_index' %}
                                   bg-slate-800 border-slate-100 text-white
                               {% else %}
                                   border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
