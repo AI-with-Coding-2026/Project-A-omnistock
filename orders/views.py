@@ -75,7 +75,6 @@ def order_create(request):
 
             # -----------------------------------------------------
             # STEP 2: STOCK VALIDATION
-            # Task 3.1
             # -----------------------------------------------------
             if quantity > product.stock_quantity:
                 form.add_error(
@@ -129,7 +128,6 @@ def order_create(request):
 
             # -----------------------------------------------------
             # STEP 5: ATOMIC STOCK DEDUCTION
-            # Task 2354
             # -----------------------------------------------------
             Product.objects.filter(
                 id=product.id,
