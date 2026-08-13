@@ -25,24 +25,59 @@ def order_create(request):
     form = OrderForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
+        product_ids = request.POST.getlist('items[][product]')
+        quantities = request.POST.getlist('items[][quantity]')
+
+        # ── VALIDATE LINE ITEMS BEFORE CREATING ORDER ──
+        valid_items = []
+        has_error = False
+
+        for product_id, qty in zip(product_ids, quantities):
+            if not product_id or not qty:
+                continue  # skip empty rows
+
+            try:
+                quantity = int(qty)
+            except ValueError:
+                form.add_error(None, 'Quantity must be a valid whole number.')
+                has_error = True
+                break
+
+            if quantity <= 0:
+                form.add_error(None, 'Quantity must be greater than zero.')
+                has_error = True
+                break
+
+            valid_items.append((product_id, quantity))
+
+        if has_error:
+            return render(request, 'orders/order_form.html', {
+                'form': form,
+                'title': 'Create Order',
+                'products': products,
+            })
+
+        if not valid_items:
+            form.add_error(None, 'At least one valid line item is required.')
+            return render(request, 'orders/order_form.html', {
+                'form': form,
+                'title': 'Create Order',
+                'products': products,
+            })
+
+        # ── ALL VALID: CREATE ORDER + ITEMS ──
         order = form.save(commit=False)
         order.user = request.user
         order.save()
 
-        product_ids = request.POST.getlist('items[][product]')
-        quantities = request.POST.getlist('items[][quantity]')
-
         total = 0
-        for product_id, qty in zip(product_ids, quantities):
-            if not product_id or not qty:
-                continue
+        for product_id, quantity in valid_items:
             product = get_object_or_404(Product, pk=product_id)
-            quantity = int(qty)
             OrderItem.objects.create(
                 order=order,
                 product=product,
                 quantity=quantity,
-                unit_price=product.unit_price,
+                unit_price=product.unit_price,  # Force DB price
             )
             total += product.unit_price * quantity
 
