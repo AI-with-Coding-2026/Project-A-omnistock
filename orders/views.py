@@ -36,14 +36,23 @@ def order_create(request):
         'title': 'Create Order',
     })
 
-
 @admin_required
 @transaction.atomic
 def order_cancel(request, pk):
-    order = get_object_or_404(Order, pk=pk)
+    order = get_object_or_404(
+        Order.objects.select_for_update(),
+        pk=pk
+    )
 
     if order.status == Order.STATUS_CANCELLED:
         messages.warning(request, 'This order is already cancelled.')
+        return redirect(ORDER_CANCEL_REDIRECT)
+
+    if order.status != Order.STATUS_COMPLETED:
+        messages.warning(
+            request,
+            'Only completed orders can be cancelled.'
+        )
         return redirect(ORDER_CANCEL_REDIRECT)
 
     for item in order.items.all():
@@ -57,6 +66,7 @@ def order_cancel(request, pk):
     messages.success(request, 'Order cancelled and stock restored.')
     return redirect(ORDER_CANCEL_REDIRECT)
 
+    
 @staff_or_admin_required
 def invoice_view(request, pk):
     order = get_object_or_404(Order, pk=pk)
