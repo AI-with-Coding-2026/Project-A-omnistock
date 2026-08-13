@@ -67,7 +67,11 @@ def order_create(request):
                 has_error = True
                 break
 
-            product = get_object_or_404(Product, pk=product_id)
+            # Lock the product row while checking stock.
+            product = get_object_or_404(
+                Product.objects.select_for_update(),
+                pk=product_id,
+            )
 
             # -----------------------------------------------------
             # STEP 2: STOCK VALIDATION
@@ -82,7 +86,7 @@ def order_create(request):
                 has_error = True
                 break
 
-            valid_items.append((product_id, quantity))
+            valid_items.append((product, quantity))
 
         if has_error:
             return render(request, 'orders/order_form.html', {
@@ -115,9 +119,7 @@ def order_create(request):
         # ---------------------------------------------------------
         # STEP 4: CREATE ORDER ITEMS + DEDUCT STOCK
         # ---------------------------------------------------------
-        for product_id, quantity in valid_items:
-            product = get_object_or_404(Product, pk=product_id)
-
+        for product, quantity in valid_items:
             OrderItem.objects.create(
                 order=order,
                 product=product,
@@ -129,7 +131,9 @@ def order_create(request):
             # STEP 5: ATOMIC STOCK DEDUCTION
             # Task 2354
             # -----------------------------------------------------
-            Product.objects.filter(id=product_id).update(
+            Product.objects.filter(
+                id=product.id,
+            ).update(
                 stock_quantity=F('stock_quantity') - quantity
             )
 
