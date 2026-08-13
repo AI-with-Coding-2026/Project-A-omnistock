@@ -28,13 +28,13 @@ def order_create(request):
         product_ids = request.POST.getlist('items[][product]')
         quantities = request.POST.getlist('items[][quantity]')
 
-        # ── VALIDATE LINE ITEMS BEFORE CREATING ORDER ──
+        # ── VALIDATE EVERYTHING BEFORE TOUCHING THE DATABASE ──
         valid_items = []
         has_error = False
 
         for product_id, qty in zip(product_ids, quantities):
             if not product_id or not qty:
-                continue  # skip empty rows
+                continue
 
             try:
                 quantity = int(qty)
@@ -48,7 +48,14 @@ def order_create(request):
                 has_error = True
                 break
 
-            valid_items.append((product_id, quantity))
+            # NEW: Confirm the product exists BEFORE we create the order
+            try:
+                product = Product.objects.get(pk=product_id)
+            except Product.DoesNotExist:
+                from django.http import Http404
+                raise Http404(f"Product {product_id} does not exist.")
+
+            valid_items.append((product, quantity))
 
         if has_error:
             return render(request, 'orders/order_form.html', {
@@ -65,19 +72,18 @@ def order_create(request):
                 'products': products,
             })
 
-        # ── ALL VALID: CREATE ORDER + ITEMS ──
+        # ── ALL VALID: NOW CREATE ORDER + ITEMS ──
         order = form.save(commit=False)
         order.user = request.user
         order.save()
 
         total = 0
-        for product_id, quantity in valid_items:
-            product = get_object_or_404(Product, pk=product_id)
+        for product, quantity in valid_items:
             OrderItem.objects.create(
                 order=order,
                 product=product,
                 quantity=quantity,
-                unit_price=product.unit_price,  # Force DB price
+                unit_price=product.unit_price,  # Always from DB
             )
             total += product.unit_price * quantity
 
@@ -92,7 +98,6 @@ def order_create(request):
         'title': 'Create Order',
         'products': products,
     })
-
 
 @admin_required
 @transaction.atomic
