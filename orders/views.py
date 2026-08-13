@@ -7,6 +7,10 @@ from core.utils import admin_required, staff_or_admin_required
 from .forms import OrderForm
 from .models import Order
 
+from django.db.models import F
+from inventory.models import Product 
+
+ORDER_CANCEL_REDIRECT = 'order_list'
 
 @staff_or_admin_required
 def order_list(request):
@@ -37,14 +41,21 @@ def order_create(request):
 @transaction.atomic
 def order_cancel(request, pk):
     order = get_object_or_404(Order, pk=pk)
-    if order.status in (Order.STATUS_PENDING, Order.STATUS_COMPLETED):
-        order.status = Order.STATUS_CANCELLED
-        order.save()
-        messages.success(request, 'Order cancelled.')
-    else:
-        messages.warning(request, 'This order cannot be cancelled.')
-    return redirect('order_list')
 
+    if order.status == Order.STATUS_CANCELLED:
+        messages.warning(request, 'This order is already cancelled.')
+        return redirect(ORDER_CANCEL_REDIRECT)
+
+    for item in order.items.all():
+        Product.objects.filter(id=item.product_id).update(
+            stock_quantity=F('stock_quantity') + item.quantity
+        )
+
+    order.status = Order.STATUS_CANCELLED
+    order.save(update_fields=['status'])
+
+    messages.success(request, 'Order cancelled and stock restored.')
+    return redirect(ORDER_CANCEL_REDIRECT)
 
 @staff_or_admin_required
 def invoice_view(request, pk):
