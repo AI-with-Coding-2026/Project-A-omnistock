@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import F
@@ -40,9 +42,10 @@ def order_create(request):
         quantities = request.POST.getlist('items[][quantity]')
 
         # ---------------------------------------------------------
-        # STEP 1: VALIDATE LINE ITEMS
+        # STEP 1: PARSE LINE ITEMS + AGGREGATE FOR STOCK VALIDATION
         # ---------------------------------------------------------
-        valid_items = []
+        requested_quantities = defaultdict(int)
+        line_items = []
         has_error = False
 
         for product_id, qty in zip(product_ids, quantities):
@@ -67,25 +70,8 @@ def order_create(request):
                 has_error = True
                 break
 
-            # Lock the product row while checking stock.
-            product = get_object_or_404(
-                Product.objects.select_for_update(),
-                pk=product_id,
-            )
-
-            # -----------------------------------------------------
-            # STEP 2: STOCK VALIDATION
-            # -----------------------------------------------------
-            if quantity > product.stock_quantity:
-                form.add_error(
-                    None,
-                    f'Insufficient stock for {product.name}. '
-                    f'Available: {product.stock_quantity}.'
-                )
-                has_error = True
-                break
-
-            valid_items.append((product, quantity))
+            requested_quantities[product_id] += quantity
+            line_items.append((product_id, quantity))
 
         if has_error:
             return render(request, 'orders/order_form.html', {
@@ -94,12 +80,42 @@ def order_create(request):
                 'products': products,
             })
 
-        if not valid_items:
+        if not line_items:
             form.add_error(
                 None,
                 'At least one valid line item is required.'
             )
 
+            return render(request, 'orders/order_form.html', {
+                'form': form,
+                'title': 'Create Order',
+                'products': products,
+            })
+
+        # ---------------------------------------------------------
+        # STEP 2: LOCK PRODUCTS + VALIDATE COMBINED QUANTITY
+        # ---------------------------------------------------------
+        locked_products = {}
+
+        for product_id, total_quantity in requested_quantities.items():
+            product = get_object_or_404(
+                Product.objects.select_for_update(),
+                pk=product_id,
+            )
+
+            locked_products[product_id] = product
+
+            if total_quantity > product.stock_quantity:
+                form.add_error(
+                    None,
+                    f'Insufficient stock for {product.name}. '
+                    f'Requested: {total_quantity}, '
+                    f'Available: {product.stock_quantity}.'
+                )
+                has_error = True
+                break
+
+        if has_error:
             return render(request, 'orders/order_form.html', {
                 'form': form,
                 'title': 'Create Order',
@@ -116,9 +132,11 @@ def order_create(request):
         total = 0
 
         # ---------------------------------------------------------
-        # STEP 4: CREATE ORDER ITEMS + DEDUCT STOCK
+        # STEP 4: CREATE ORIGINAL ORDER ITEMS + DEDUCT STOCK
         # ---------------------------------------------------------
-        for product, quantity in valid_items:
+        for product_id, quantity in line_items:
+            product = locked_products[product_id]
+
             OrderItem.objects.create(
                 order=order,
                 product=product,
