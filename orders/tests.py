@@ -50,10 +50,7 @@ class OrderCreateStockTests(TestCase):
                 'items[][quantity]': [str(quantity) for quantity in quantities],
             },
         )
-          # ============================================================
-    # TEST 1
-    # Successful stock deduction
-    # ============================================================
+     
 
     def test_successful_stock_deduction(self):
         response = self.create_order([self.product_a], [10])
@@ -73,12 +70,6 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(item.unit_price, Decimal('100.00'))
 
 
-    # ============================================================
-    # TEST 2
-    # Insufficient stock
-    # No order or stock changes
-    # ============================================================
-
     def test_insufficient_stock_creates_no_order_or_stock_change(self):
         response = self.create_order([self.product_a], [100])
 
@@ -90,10 +81,6 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(self.product_a.stock_quantity, 50)
 
-    # ============================================================
-    # TEST 3
-    # Multiple products
-    # ============================================================
 
     def test_multiple_products_deduct_stock_correctly(self):
         response = self.create_order(
@@ -114,26 +101,7 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(order.total_amount, Decimal('2252.50'))
         self.assertEqual(OrderItem.objects.filter(order=order).count(), 2)
 
-        
-    # ============================================================
-    # TEST 4
-    # Duplicate product rows where combined quantity
-    # EXCEEDS stock
-    #
-    # This is the bug Sir specifically identified.
-    #
-    # Stock = 50
-    # Row 1 = 30
-    # Row 2 = 30
-    #
-    # Individually:
-    # 30 <= 50  -> passes
-    # 30 <= 50  -> passes
-    #
-    # Combined:
-    # 30 + 30 = 60
-    # 60 > 50  -> MUST FAIL
-    # ============================================================
+
 
     def test_duplicate_product_rows_combined_quantity_exceeds_stock(self):
         response = self.create_order(
@@ -150,23 +118,7 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(self.product_a.stock_quantity, 50)
 
-    # ============================================================
-    # TEST 5
-    # Duplicate product rows where combined quantity
-    # IS WITHIN stock
-    #
-    # Stock = 50
-    # Row 1 = 10
-    # Row 2 = 15
-    #
-    # Combined = 25
-    # 25 <= 50 -> MUST SUCCEED
-    #
-    # IMPORTANT:
-    # Your current views.py intentionally creates TWO
-    # OrderItems because it preserves the submitted line items.
-    # Therefore this test checks two items, not one.
-    # ============================================================
+  
 
     def test_duplicate_product_rows_combined_quantity_within_stock_succeeds(self):
         response = self.create_order(
@@ -190,7 +142,7 @@ class OrderCreateStockTests(TestCase):
             product=self.product_a,
         )
 
-        # Current views.py preserves the two submitted rows.
+        
         self.assertEqual(items.count(), 2)
 
         quantities = list(
@@ -202,18 +154,6 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(quantities, [10, 15])
 
-    # ============================================================
-    # TEST 6
-    # Duplicate product overflow + another valid product
-    #
-    # Product A:
-    # 30 + 30 = 60 > 50
-    #
-    # Product B:
-    # 5 <= 30
-    #
-    # Entire order MUST fail.
-    # ============================================================
 
     def test_duplicate_product_overflow_rolls_back_entire_order(self):
         response = self.create_order(
@@ -232,10 +172,7 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(self.product_a.stock_quantity, 50)
         self.assertEqual(self.product_b.stock_quantity, 30)
 
-    # ============================================================
-    # TEST 7
-    # Zero quantity rejected
-    # ============================================================
+
 
     def test_zero_quantity_is_rejected(self):
         response = self.create_order([self.product_a], [0])
@@ -247,10 +184,6 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(self.product_a.stock_quantity, 50)
 
-    # ============================================================
-    # TEST 8
-    # Negative quantity rejected
-    # ============================================================
 
     def test_negative_quantity_is_rejected(self):
         response = self.create_order([self.product_a], [-5])
@@ -262,10 +195,6 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(self.product_a.stock_quantity, 50)
 
-    # ============================================================
-    # TEST 9
-    # Invalid/non-numeric quantity rejected
-    # ============================================================
 
     def test_non_numeric_quantity_is_rejected(self):
         response = self.client.post(
@@ -283,11 +212,8 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-    # ============================================================
-    # TEST 10
-    # No line items rejected
-    # ============================================================
-    
+
+
     def test_no_line_items_are_rejected(self):
         response = self.client.post(
             reverse('order_create'),

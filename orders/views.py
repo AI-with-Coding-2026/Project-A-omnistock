@@ -43,10 +43,7 @@ def order_create(request):
     if request.method == 'POST' and form.is_valid():
         product_ids = request.POST.getlist('items[][product]')
         quantities = request.POST.getlist('items[][quantity]')
-        # ---------------------------------------------------------
-        # STEP 1: PARSE LINE ITEMS + AGGREGATE FOR STOCK VALIDATION
-        # ---------------------------------------------------------
-
+ 
         requested_quantities = defaultdict(int)
         line_items = []
         has_error = False
@@ -94,9 +91,6 @@ def order_create(request):
                 'products': products,
             })
             
-        # ---------------------------------------------------------
-        # STEP 2: LOCK PRODUCTS + VALIDATE COMBINED QUANTITY
-        # ---------------------------------------------------------
 
         locked_products = {}
 
@@ -125,9 +119,6 @@ def order_create(request):
                 'products': products,
             })
 
-        # ---------------------------------------------------------
-        # STEP 3: CREATE ORDER
-        # ---------------------------------------------------------
 
         order = form.save(commit=False)
         order.user = request.user
@@ -135,9 +126,7 @@ def order_create(request):
 
         total = 0
 
-        # ---------------------------------------------------------
-        # STEP 4: CREATE ORIGINAL ORDER ITEMS + DEDUCT STOCK
-        # ---------------------------------------------------------
+   
         for product_id, quantity in line_items:
             product = locked_products[product_id]
 
@@ -148,9 +137,6 @@ def order_create(request):
                 unit_price=product.unit_price,
             )
 
-            # -----------------------------------------------------
-            # STEP 5: ATOMIC STOCK DEDUCTION
-            # -----------------------------------------------------
             Product.objects.filter(
                 id=product.id,
             ).update(
@@ -159,9 +145,7 @@ def order_create(request):
 
             total += product.unit_price * quantity
 
-        # ---------------------------------------------------------
-        # STEP 6: UPDATE ORDER TOTAL
-        # ---------------------------------------------------------
+
         order.total_amount = total
         order.save()
 
