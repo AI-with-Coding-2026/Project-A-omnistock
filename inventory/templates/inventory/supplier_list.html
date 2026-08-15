@@ -33,6 +33,20 @@
             </div>
         </div>
 
+        <form method="get" action="{% url 'supplier_index' %}" class="mb-4 flex gap-2">
+            <input 
+                type="text" 
+                name="q" 
+                value="{{ q }}" 
+                placeholder="Search by name or email..."
+                class="form-control"
+            >
+            <button type="submit" class="btn btn-primary">Search</button>
+            {% if q %}
+                <a href="{% url 'supplier_index' %}" class="btn btn-secondary">Clear</a>
+            {% endif %}
+        </form>
+
         {% if suppliers %}
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 text-sm">

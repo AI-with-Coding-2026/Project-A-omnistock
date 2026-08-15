@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.db.models import F, BooleanField, Case, When, Value
+from django.db.models import F, BooleanField, Case, When, Value, Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 
@@ -69,9 +69,17 @@ def product_delete(request, pk):
 
 @staff_or_admin_required
 def supplier_list(request):
-    suppliers = Supplier.objects.prefetch_related('products').all()
+    q = request.GET.get('q', '').strip()
+    suppliers = Supplier.objects.annotate(product_count=Count('products'))
+
+    if q:
+        suppliers = suppliers.filter(
+            Q(name__icontains=q) | Q(email__icontains=q)
+        )
+
     return render(request, 'inventory/supplier_list.html', {
         'suppliers': suppliers,
+        'q': q,
         'is_admin': request.user.role == 'ADMIN',
     })
 
