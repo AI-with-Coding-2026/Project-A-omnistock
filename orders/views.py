@@ -12,6 +12,9 @@ from .forms import OrderForm
 from .models import Order, OrderItem
 
 
+ORDER_CANCEL_REDIRECT = 'order_list'
+
+
 @staff_or_admin_required
 def order_list(request):
     orders = Order.objects.select_related('user').all()
@@ -40,10 +43,7 @@ def order_create(request):
     if request.method == 'POST' and form.is_valid():
         product_ids = request.POST.getlist('items[][product]')
         quantities = request.POST.getlist('items[][quantity]')
-
-        # ---------------------------------------------------------
-        # STEP 1: PARSE LINE ITEMS + AGGREGATE FOR STOCK VALIDATION
-        # ---------------------------------------------------------
+ 
         requested_quantities = defaultdict(int)
         line_items = []
         has_error = False
@@ -57,7 +57,7 @@ def order_create(request):
             except ValueError:
                 form.add_error(
                     None,
-                    'Quantity must be a valid whole number.'
+                    'Quantity must be a valid whole number.',
                 )
                 has_error = True
                 break
@@ -65,7 +65,7 @@ def order_create(request):
             if quantity <= 0:
                 form.add_error(
                     None,
-                    'Quantity must be greater than zero.'
+                    'Quantity must be greater than zero.',
                 )
                 has_error = True
                 break
@@ -83,18 +83,15 @@ def order_create(request):
         if not line_items:
             form.add_error(
                 None,
-                'At least one valid line item is required.'
+                'At least one valid line item is required.',
             )
-
             return render(request, 'orders/order_form.html', {
                 'form': form,
                 'title': 'Create Order',
                 'products': products,
             })
+            
 
-        # ---------------------------------------------------------
-        # STEP 2: LOCK PRODUCTS + VALIDATE COMBINED QUANTITY
-        # ---------------------------------------------------------
         locked_products = {}
 
         for product_id, total_quantity in requested_quantities.items():
@@ -110,7 +107,7 @@ def order_create(request):
                     None,
                     f'Insufficient stock for {product.name}. '
                     f'Requested: {total_quantity}, '
-                    f'Available: {product.stock_quantity}.'
+                    f'Available: {product.stock_quantity}.',
                 )
                 has_error = True
                 break
@@ -122,18 +119,14 @@ def order_create(request):
                 'products': products,
             })
 
-        # ---------------------------------------------------------
-        # STEP 3: CREATE ORDER
-        # ---------------------------------------------------------
+
         order = form.save(commit=False)
         order.user = request.user
         order.save()
 
         total = 0
 
-        # ---------------------------------------------------------
-        # STEP 4: CREATE ORIGINAL ORDER ITEMS + DEDUCT STOCK
-        # ---------------------------------------------------------
+   
         for product_id, quantity in line_items:
             product = locked_products[product_id]
 
@@ -144,25 +137,19 @@ def order_create(request):
                 unit_price=product.unit_price,
             )
 
-            # -----------------------------------------------------
-            # STEP 5: ATOMIC STOCK DEDUCTION
-            # -----------------------------------------------------
             Product.objects.filter(
                 id=product.id,
             ).update(
-                stock_quantity=F('stock_quantity') - quantity
+                stock_quantity=F('stock_quantity') - quantity,
             )
 
             total += product.unit_price * quantity
 
-        # ---------------------------------------------------------
-        # STEP 6: UPDATE ORDER TOTAL
-        # ---------------------------------------------------------
+
         order.total_amount = total
         order.save()
 
         messages.success(request, 'Order created.')
-
         return redirect('order_list')
 
     return render(request, 'orders/order_form.html', {
@@ -175,23 +162,32 @@ def order_create(request):
 @admin_required
 @transaction.atomic
 def order_cancel(request, pk):
-    order = get_object_or_404(Order, pk=pk)
+    order = get_object_or_404(
+        Order.objects.select_for_update(),
+        pk=pk,
+    )
 
-    if order.status in (
-        Order.STATUS_PENDING,
-        Order.STATUS_COMPLETED,
-    ):
-        order.status = Order.STATUS_CANCELLED
-        order.save()
+    if order.status == Order.STATUS_CANCELLED:
+        messages.warning(request, 'This order is already cancelled.')
+        return redirect(ORDER_CANCEL_REDIRECT)
 
-        messages.success(request, 'Order cancelled.')
-    else:
+    if order.status != Order.STATUS_COMPLETED:
         messages.warning(
             request,
-            'This order cannot be cancelled.'
+            'Only completed orders can be cancelled.',
+        )
+        return redirect(ORDER_CANCEL_REDIRECT)
+
+    for item in order.items.all():
+        Product.objects.filter(id=item.product_id).update(
+            stock_quantity=F('stock_quantity') + item.quantity,
         )
 
-    return redirect('order_list')
+    order.status = Order.STATUS_CANCELLED
+    order.save(update_fields=['status'])
+
+    messages.success(request, 'Order cancelled and stock restored.')
+    return redirect(ORDER_CANCEL_REDIRECT)
 
 
 @staff_or_admin_required
