@@ -2,6 +2,7 @@ from django.db.models import Q
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.core.paginator import Paginator #Added
 
 from core.utils import admin_required, staff_or_admin_required
 
@@ -36,8 +37,14 @@ def product_index(request):
     if max_price:
         products = products.filter(unit_price__lte=max_price)
     suppliers = Supplier.objects.all()
+
+    paginator = Paginator(products, 20) #Added
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'inventory/product_index.html', {
-        'products': products,
+        'products': page_obj,
+        'page_obj': page_obj,
         'q': q,
         'suppliers': suppliers,
         'selected_supplier': supplier_id,
