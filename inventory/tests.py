@@ -235,3 +235,76 @@ class ProductModelTest(TestCase):
 
         response = self.client.get('/inventory/products/create/')
         self.assertEqual(response.status_code, 200)
+
+
+class ProductEditTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='product_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+
+        self.sales_rep = User.objects.create_user(
+            username='product_sales',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+
+        self.supplier = Supplier.objects.create(
+            name='Test Supplier',
+            email='product-supplier@example.com',
+        )
+
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='Test Product',
+            unit_price=100.00,
+            stock_quantity=20,
+            reorder_level=5,
+        )
+
+        self.client = Client()
+
+    def test_admin_can_open_product_edit(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse('product_update', args=[self.product.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        class ProductEditTests(TestCase):
+        self.assertContains(response, 'Test Product')
+
+    def test_admin_can_update_product_stock_price_and_reorder_level(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse('product_update', args=[self.product.pk]),
+            {
+                'supplier': self.supplier.pk,
+                'name': 'Updated Product',
+                'unit_price': '150.00',
+                'stock_quantity': '10',
+                'reorder_level': '3',
+            },
+        )
+
+        self.assertRedirects(response, reverse('product_list'))
+
+        self.product.refresh_from_db()
+
+        self.assertEqual(self.product.name, 'Updated Product')
+        self.assertEqual(float(self.product.unit_price), 150.00)
+        self.assertEqual(self.product.stock_quantity, 10)
+        self.assertEqual(self.product.reorder_level, 3)
+
+    def test_sales_rep_cannot_edit_product(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(
+            reverse('product_update', args=[self.product.pk])
+        )
+
+        self.assertEqual(response.status_code, 403)
