@@ -1,6 +1,13 @@
 {% extends 'core/base.html' %}
 {% block page_title %}Products{% endblock %}
 {% block content %}
+{% if messages %}
+    {% for message in messages %}
+        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
 <form method="get" class="mb-4 flex gap-2">
     <input type="text" name="q" value="{{ q }}" placeholder="Search by name or SKU">
     <select name="supplier">
@@ -35,10 +42,10 @@
     </tbody>
 </table>
     {% if page_obj.has_previous %}  
-        <a href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">Previous</a>
+        <a href="?page={{ page_obj.previous_page_number }}&{{ querystring }}">Previous</a>
     {% endif %}
     Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
     {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">Next</a>
+        <a href="?page={{ page_obj.next_page_number }}&{{ querystring }}">Next</a>
     {% endif %}
 {% endblock %}

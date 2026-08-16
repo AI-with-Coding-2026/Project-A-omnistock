@@ -26,21 +26,33 @@ def product_index(request):
     supplier_id = request.GET.get('supplier')
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
-    products = Product.objects.all()
+    products = Product.objects.select_related('supplier').all()
     if q:
         products = products.filter(
             Q(name__icontains=q) | Q(sku__icontains=q))
     if supplier_id:
         products = products.filter(supplier_id=supplier_id)
     if min_price:
-        products = products.filter(unit_price__gte=min_price)
+            try:
+                products = products.filter(unit_price__gte=float(min_price))
+            except ValueError:
+                messages.error(request, 'Min price must be a number.')
+                min_price = ''
     if max_price:
-        products = products.filter(unit_price__lte=max_price)
+        try:
+            products = products.filter(unit_price__lte=float(max_price))
+        except ValueError:
+            messages.error(request, 'Max price must be a number.')
+            max_price = ''
     suppliers = Supplier.objects.all()
 
     paginator = Paginator(products, 20) #Added
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+
+    querystring = request.GET.copy()
+    querystring.pop('page', None)
+    querystring = querystring.urlencode()
 
     return render(request, 'inventory/product_index.html', {
         'products': page_obj,
@@ -50,6 +62,7 @@ def product_index(request):
         'selected_supplier': supplier_id,
         'min_price': min_price,
         'max_price': max_price,
+        'querystring': querystring,
     })
 
 @admin_required
