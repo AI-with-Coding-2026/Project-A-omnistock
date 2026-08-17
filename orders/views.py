@@ -11,7 +11,7 @@ from .models import Order, OrderItem
 
 @staff_or_admin_required
 def order_list(request):
-    orders = Order.objects.select_related('user').all()
+    orders = Order.objects.select_related('user').prefetch_related('items__product').all()
     return render(request, 'orders/order_list.html', {
         'orders': orders,
         'is_admin': request.user.role == 'ADMIN',
@@ -48,7 +48,7 @@ def order_create(request):
                 has_error = True
                 break
 
-            # NEW: Confirm the product exists BEFORE we create the order
+            # Confirm the product exists BEFORE we create the order
             try:
                 product = Product.objects.get(pk=product_id)
             except Product.DoesNotExist:
@@ -98,6 +98,7 @@ def order_create(request):
         'title': 'Create Order',
         'products': products,
     })
+
 
 @admin_required
 @transaction.atomic

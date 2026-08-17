@@ -70,8 +70,16 @@
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-6 py-4 font-semibold text-gray-900">#{{ order.pk }}</td>
                                 <td class="px-6 py-4 text-gray-700">{{ order.customer_name }}</td>
-                                <td class="px-6 py-4 text-gray-700">{{ order.product }}</td>
-                                <td class="px-6 py-4 text-gray-700">{{ order.quantity }}</td>
+                                <td class="px-6 py-4 text-gray-700">
+                                    {% for item in order.items.all %}
+                                        <div>{{ item.product.name }}</div>
+                                    {% endfor %}
+                                </td>
+                                <td class="px-6 py-4 text-gray-700">
+                                    {% for item in order.items.all %}
+                                        <div>{{ item.quantity }}</div>
+                                    {% endfor %}
+                                </td>
                                 <td class="px-6 py-4">
                                     {% if order.status == 'COMPLETED' %}
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Completed</span>
@@ -81,7 +89,7 @@
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ order.status }}</span>
                                     {% endif %}
                                 </td>
-                                <td class="px-6 py-4 font-semibold text-gray-900">${{ order.total }}</td>
+                                <td class="px-6 py-4 font-semibold text-gray-900">${{ order.total_amount }}</td>
                                 <td class="px-6 py-4 text-gray-500 whitespace-nowrap">{{ order.created_at|date:"M d, Y H:i" }}</td>
                                 <td class="px-6 py-4">
                                     <div class="flex justify-end items-center gap-2">
@@ -122,9 +130,15 @@
                         </div>
                         <div class="text-sm text-gray-700">
                             <div class="flex justify-between py-0.5"><span class="text-gray-500">Customer</span><span>{{ order.customer_name }}</span></div>
-                            <div class="flex justify-between py-0.5"><span class="text-gray-500">Product</span><span>{{ order.product }}</span></div>
-                            <div class="flex justify-between py-0.5"><span class="text-gray-500">Quantity</span><span>{{ order.quantity }}</span></div>
-                            <div class="flex justify-between py-0.5"><span class="text-gray-500">Total</span><span class="font-semibold text-gray-900">${{ order.total }}</span></div>
+                            <div class="flex justify-between py-0.5">
+                                <span class="text-gray-500">Product</span>
+                                <span class="text-right">
+                                    {% for item in order.items.all %}
+                                        <div>{{ item.product.name }} (x{{ item.quantity }})</div>
+                                    {% endfor %}
+                                </span>
+                            </div>
+                            <div class="flex justify-between py-0.5"><span class="text-gray-500">Total</span><span class="font-semibold text-gray-900">${{ order.total_amount }}</span></div>
                             <div class="flex justify-between py-0.5"><span class="text-gray-500">Created</span><span>{{ order.created_at|date:"M d, Y H:i" }}</span></div>
                         </div>
                         <div class="flex items-center gap-2 pt-1">
