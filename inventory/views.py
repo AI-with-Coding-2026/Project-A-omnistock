@@ -1,9 +1,13 @@
 from django.contrib import messages
+from django.db import IntegrityError
 from django.db.models import F, BooleanField, Case, When, Value, Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
-
-from core.utils import admin_required, staff_or_admin_required
+from core.utils import (
+    admin_or_inventory_manager_required,
+    admin_required,
+    staff_or_admin_required,
+)
 
 from .forms import ProductForm, SupplierForm
 from .models import Product, Supplier
@@ -67,9 +71,15 @@ def product_delete(request, pk):
     return render(request, 'inventory/product_confirm_delete.html', {'object': product})
 
 
-@staff_or_admin_required
+@staff_or_admin_required  # All staff roles can VIEW the supplier list (including Sales Rep)
 def supplier_list(request):
+    """
+    Supplier index page - read-only view accessible by all staff roles.
+    Sales Rep can view but not create/edit (buttons hidden via can_manage_suppliers).
+    Supports search by name/email and shows product count per supplier.
+    """
     q = request.GET.get('q', '').strip()
+    role = request.user.role
     suppliers = Supplier.objects.annotate(product_count=Count('products'))
 
     if q:
@@ -80,42 +90,80 @@ def supplier_list(request):
     return render(request, 'inventory/supplier_list.html', {
         'suppliers': suppliers,
         'q': q,
-        'is_admin': request.user.role == 'ADMIN',
+        'is_admin': role == 'ADMIN',
+        'can_manage_suppliers': role in ('ADMIN', 'INVENTORY_MANAGER'),
     })
 
 
-@admin_required
+@admin_or_inventory_manager_required  # Only Admin and Inventory Manager can create suppliers
 def supplier_create(request):
-    form = SupplierForm(request.POST or None)
-    if form.is_valid():
-        form.save()
-        messages.success(request, 'Supplier created.')
-        return redirect('supplier_list')
+    """
+    Create new supplier. Enforces role-based access at the view level.
+    Sales Rep attempting direct URL access will get 403 PermissionDenied.
+
+    IntegrityError handling provides defense-in-depth for email uniqueness
+    (form validation is primary, DB constraint is backstop).
+    """
+    if request.method == 'POST':
+        form = SupplierForm(request.POST)
+        if form.is_valid():
+            try:
+                form.save()
+            except IntegrityError:
+                # DB-level uniqueness violation (e.g., race condition or direct DB insert)
+                form.add_error('email', 'This email is already in use.')
+            else:
+                messages.success(request, 'Supplier created.')
+                return redirect('supplier_index')
+    else:
+        form = SupplierForm()
+
     return render(request, 'inventory/supplier_form.html', {
         'form': form,
         'title': 'Create Supplier',
     })
 
 
-@admin_required
-def supplier_update(request, pk):
+@admin_or_inventory_manager_required  # Only Admin and Inventory Manager can edit suppliers
+def supplier_edit(request, pk):
+    """
+    Edit existing supplier. Enforces role-based access at the view level.
+    Sales Rep attempting direct URL access will get 403 PermissionDenied.
+
+    ModelForm handles allowing unchanged email (same instance) while rejecting
+    another supplier's email. IntegrityError provides DB-level protection.
+    """
     supplier = get_object_or_404(Supplier, pk=pk)
-    form = SupplierForm(request.POST or None, instance=supplier)
-    if form.is_valid():
-        form.save()
-        messages.success(request, 'Supplier updated.')
-        return redirect('supplier_list')
+
+    if request.method == 'POST':
+        form = SupplierForm(request.POST, instance=supplier)
+        if form.is_valid():
+            try:
+                form.save()
+            except IntegrityError:
+                # Catches attempt to use another supplier's email
+                form.add_error('email', 'This email is already in use.')
+            else:
+                messages.success(request, 'Supplier updated.')
+                return redirect('supplier_index')
+    else:
+        form = SupplierForm(instance=supplier)
+
     return render(request, 'inventory/supplier_form.html', {
         'form': form,
         'title': 'Update Supplier',
     })
 
 
-@admin_required
+@admin_required  # Only Admin role can delete suppliers (not Inventory Manager)
 def supplier_delete(request, pk):
+    """
+    Delete supplier. Most restrictive access - Admin only.
+    Inventory Manager is blocked from this operation.
+    """
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == 'POST':
         supplier.delete()
         messages.success(request, 'Supplier deleted.')
-        return redirect('supplier_list')
+        return redirect('supplier_index')
     return render(request, 'inventory/supplier_confirm_delete.html', {'object': supplier})

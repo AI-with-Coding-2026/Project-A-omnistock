@@ -17,7 +17,7 @@
         </div>
         <form method="post" class="mt-8 flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:justify-end">
             {% csrf_token %}
-            <a href="{% url 'supplier_list' %}" class="rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 transition hover:bg-gray-50">Cancel</a>
+            <a href="{% url 'supplier_index' %}" class="rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 transition hover:bg-gray-50">Cancel</a>
             <button type="submit" class="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700">Delete Supplier</button>
         </form>
     </div>
