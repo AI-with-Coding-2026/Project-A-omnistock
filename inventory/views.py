@@ -51,11 +51,11 @@ def product_index(request):
     if supplier_id:
         products = products.filter(supplier_id=supplier_id)
     if min_price:
-            try:
-                products = products.filter(unit_price__gte=float(min_price))
-            except ValueError:
-                messages.error(request, 'Min price must be a number.')
-                min_price = ''
+        try:
+            products = products.filter(unit_price__gte=float(min_price))
+        except ValueError:
+            messages.error(request, 'Min price must be a number.')
+            min_price = ''
     if max_price:
         try:
             products = products.filter(unit_price__lte=float(max_price))
