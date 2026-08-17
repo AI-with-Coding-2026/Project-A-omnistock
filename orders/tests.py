@@ -518,3 +518,46 @@ class OrderCancellationTests(TestCase):
 
         self.assertEqual(order.status, Order.STATUS_PENDING)
         self.assertEqual(self.product.stock_quantity, 8)
+
+class OrderDetailTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='detail_user',
+            password='testpass123',
+            role=User.ROLE_STAFF,
+        )
+        self.supplier = Supplier.objects.create(
+            name='Detail Supplier',
+            email='detail@example.com',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='Detail Product',
+            unit_price=Decimal('25.00'),
+            stock_quantity=10,
+        )
+        self.order = Order.objects.create(
+            user=self.user,
+            customer_name='Detail Customer',
+            total_amount=Decimal('50.00'),
+            status=Order.STATUS_COMPLETED,
+        )
+        OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal('25.00'),
+        )
+
+    def test_staff_can_view_order_detail_with_line_items(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.order.order_number)
+        self.assertContains(response, 'Detail Customer')
+        self.assertContains(response, 'Detail Product')
+        self.assertContains(response, '25.00')
