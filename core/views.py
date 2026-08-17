@@ -48,7 +48,7 @@ def dashboard(request):
     )["total_revenue"] or 0
 
     products = Product.objects.select_related('supplier').all()
-    low_stock = [p for p in products if p.is_low_stock]
+    low_stock = Product.low_stock()
     is_admin = request.user.role == User.ROLE_ADMIN
 
     context = {
