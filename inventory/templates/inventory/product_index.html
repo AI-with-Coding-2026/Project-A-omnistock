@@ -1,0 +1,51 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Products{% endblock %}
+{% block content %}
+{% if messages %}
+    {% for message in messages %}
+        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+<form method="get" class="mb-4 flex gap-2">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by name or SKU">
+    <select name="supplier">
+        <option value="">All suppliers</option>
+        {% for s in suppliers %}
+        <option value="{{ s.id }}" {% if s.id|stringformat:"s" == selected_supplier %}selected{% endif %}>
+            {{ s.name }}
+        </option>
+        {% endfor %}
+    </select>
+    <input type="number" step="0.01" name="min_price" value="{{ min_price }}" placeholder="Min price">
+    <input type="number" step="0.01" name="max_price" value="{{ max_price }}" placeholder="Max price">
+    <button type="submit">Filter</button>
+</form>
+<table class="table-auto w-full">
+    <thead>
+        <tr>
+            <th>SKU</th><th>Name</th><th>Supplier</th><th>Unit Price</th><th>Stock</th><th>Reorder Level</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in products %}
+        <tr>
+            <td>{{ p.sku }}</td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.supplier.name }}</td>
+            <td>{{ p.unit_price }}</td>
+            <td>{{ p.stock_quantity }}</td>
+            <td>{{ p.reorder_level }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+    {% if page_obj.has_previous %}  
+        <a href="?page={{ page_obj.previous_page_number }}&{{ querystring }}">Previous</a>
+    {% endif %}
+    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&{{ querystring }}">Next</a>
+    {% endif %}
+{% endblock %}
