@@ -561,3 +561,108 @@ class OrderDetailTests(TestCase):
         self.assertContains(response, 'Detail Customer')
         self.assertContains(response, 'Detail Product')
         self.assertContains(response, '25.00')
+
+
+    def test_cancelled_order_displays_red_status_badge(self):
+        self.order.status = Order.STATUS_CANCELLED
+        self.order.save()
+
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Cancelled')
+        self.assertContains(response, 'bg-red-100')
+
+    def test_completed_order_displays_green_status_badge(self):
+        self.order.status = Order.STATUS_COMPLETED
+        self.order.save()
+
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Completed')
+        self.assertContains(response, 'bg-green-100')
+
+
+    def test_order_detail_displays_multiple_line_items(self):
+        second_product = Product.objects.create(
+            supplier=self.supplier,
+            name='Second Detail Product',
+            unit_price=Decimal('15.00'),
+            stock_quantity=20,
+        )
+        OrderItem.objects.create(
+            order=self.order,
+            product=second_product,
+            quantity=3,
+            unit_price=Decimal('15.00'),
+        )
+
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.product.name)
+        self.assertContains(response, second_product.name)
+        self.assertContains(response, '2')
+        self.assertContains(response, '3')
+
+
+    def test_order_detail_shows_empty_state_when_no_items_exist(self):
+        empty_order = Order.objects.create(
+            user=self.user,
+            customer_name='No Items Customer',
+            total_amount=Decimal('0.00'),
+            status=Order.STATUS_PENDING,
+        )
+
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[empty_order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'No line items found for this order.',
+        )
+
+
+    def test_order_detail_returns_404_for_missing_order(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[99999])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+
+    def test_user_without_an_allowed_role_is_redirected(self):
+        unauthorized_user = User.objects.create_user(
+            username='unauthorized_user',
+            password='testpass123',
+            role='CUSTOMER',
+        )
+        self.client.force_login(unauthorized_user)
+
+        detail_url = reverse('order_detail', args=[self.order.pk])
+        response = self.client.get(detail_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f'{reverse("login")}?next={detail_url}',
+        )

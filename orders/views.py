@@ -26,7 +26,10 @@ def order_list(request):
 
 @staff_or_admin_required
 def order_detail(request, order_id):
-    order = get_object_or_404(Order, pk=order_id)
+    order = get_object_or_404(
+    Order.objects.prefetch_related('items__product'),
+    pk=order_id,
+    )
     return render(request, 'orders/order_detail.html', {
         'order': order
     })
