@@ -1,3 +1,4 @@
+from django.contrib.auth import logout
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import render
 from django.urls import reverse
@@ -10,11 +11,31 @@ from .forms import StyledLoginForm
 from .models import User
 from .utils import staff_or_admin_required
 
-
 class RoleBasedLoginView(LoginView):
     template_name = 'core/login.html'
     authentication_form = StyledLoginForm
     redirect_authenticated_user = True
+
+    CUSTOMER_ACCESS_MESSAGE = "Customer accounts cannot access the staff portal."
+
+    def dispatch(self, request, *args, **kwargs):
+        # Handle already-authenticated customer sessions before
+        # LoginView redirects authenticated users.
+        if (
+            request.user.is_authenticated
+            and request.user.role == User.ROLE_CUSTOMER
+        ):
+            logout(request)
+
+            form = self.get_form()
+            context = self.get_context_data(
+                form=form,
+                customer_access_error=self.CUSTOMER_ACCESS_MESSAGE,
+            )
+
+            return self.render_to_response(context)
+
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
         user = form.get_user()
@@ -22,10 +43,7 @@ class RoleBasedLoginView(LoginView):
         # Customer accounts do not have access to the staff portal.
         # Reject the login before Django creates an authenticated session.
         if user.role == User.ROLE_CUSTOMER:
-            form.add_error(
-                None,
-                "Customer accounts cannot access the staff portal."
-            )
+            form.add_error(None, self.CUSTOMER_ACCESS_MESSAGE)
             return self.form_invalid(form)
 
         return super().form_valid(form)
@@ -41,7 +59,6 @@ class RoleBasedLoginView(LoginView):
             return reverse('order_create')
         else:
             return reverse('dashboard')
-
 
 class RoleBasedLogoutView(LogoutView):
     next_page = "/login/"

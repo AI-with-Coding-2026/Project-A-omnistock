@@ -29,13 +29,11 @@ class RoleBasedLoginViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        # Verify the message is actually rendered in the login page.
         self.assertContains(
             response,
             "Customer accounts cannot access the staff portal.",
         )
 
-        # Customer must not be authenticated.
         self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_sales_rep_can_still_login(self):
@@ -51,3 +49,17 @@ class RoleBasedLoginViewTests(TestCase):
         self.assertEqual(response.url, reverse("order_create"))
 
         self.assertTrue(response.wsgi_request.user.is_authenticated)
+
+    def test_authenticated_customer_cannot_access_login_page(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.get(reverse("login"))
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(
+            response,
+            "Customer accounts cannot access the staff portal.",
+        )
+
+        self.assertNotIn("_auth_user_id", self.client.session)

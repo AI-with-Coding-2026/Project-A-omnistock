@@ -25,7 +25,29 @@
             </p>
         </div>
 
-        {% if form.non_field_errors %}
+        {% if customer_access_error %}
+            <div class="flex items-start gap-2 bg-red-50 border border-red-200
+                        text-red-700 rounded-lg p-3 mb-6 text-sm">
+
+                <svg class="w-4 h-4 mt-0.5 shrink-0"
+                     viewBox="0 0 20 20"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.6">
+
+                    <circle cx="10" cy="10" r="7"/>
+                    <path d="M10 6.5v4"/>
+                    <circle cx="10"
+                            cy="13.2"
+                            r="0.4"
+                            fill="currentColor"/>
+                </svg>
+
+                <p>{{ customer_access_error }}</p>
+
+            </div>
+
+        {% elif form.non_field_errors %}
             <div class="flex items-start gap-2 bg-red-50 border border-red-200
                         text-red-700 rounded-lg p-3 mb-6 text-sm">
 
