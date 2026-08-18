@@ -950,3 +950,66 @@ class OrderDetailTests(TestCase):
             response.url,
             f'{reverse("login")}?next={detail_url}',
         )
+
+
+class InvoicePdfTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='pdf_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.supplier = Supplier.objects.create(
+            name='PDF Supplier',
+            email='pdf@example.com',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='PDF Product',
+            unit_price=Decimal('12.50'),
+            stock_quantity=40,
+        )
+        self.order = Order.objects.create(
+            user=self.admin,
+            customer_name='PDF Customer',
+            status=Order.STATUS_COMPLETED,
+            total_amount=Decimal('25.00'),
+        )
+        OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal('12.50'),
+        )
+
+    def test_invoice_pdf_downloads_as_pdf(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse('invoice_pdf', args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertTrue(
+            response['Content-Disposition'].startswith('attachment;')
+        )
+        self.assertIn(
+            f'invoice_{self.order.order_number}.pdf',
+            response['Content-Disposition'],
+        )
+        self.assertTrue(response.content.startswith(b'%PDF'))
+
+    def test_invoice_pdf_requires_allowed_role(self):
+        unauthorized_user = User.objects.create_user(
+            username='pdf_unauthorized',
+            password='password123',
+            role='CUSTOMER',
+        )
+        self.client.force_login(unauthorized_user)
+
+        response = self.client.get(
+            reverse('invoice_pdf', args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 302)

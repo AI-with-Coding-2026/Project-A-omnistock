@@ -4,13 +4,16 @@ from collections import defaultdict
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import F
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 
 from core.utils import admin_required, staff_or_admin_required
 from inventory.models import Product
 
 from .forms import OrderForm
 from .models import InvalidOrderTransitionError, Order, OrderItem
+from .pdf import render_html_to_pdf
 
 
 logger = logging.getLogger(__name__)
@@ -244,3 +247,25 @@ def invoice_view(request, pk):
     return render(request, 'orders/invoice.html', {
         'order': order,
     })
+
+
+@staff_or_admin_required
+def invoice_pdf(request, order_id):
+    order = get_object_or_404(Order, pk=order_id)
+
+    html = render_to_string('orders/invoice.html', {'order': order}, request=request)
+    pdf_bytes = render_html_to_pdf(html)
+
+    if not pdf_bytes:
+        logger.error("Failed to generate PDF for Order #%s", order.pk)
+        messages.error(
+            request,
+            'Sorry, the invoice PDF could not be generated. Please try again.',
+        )
+        return redirect('invoice_view', order_id)
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f'attachment; filename="invoice_{order.order_number}.pdf"'
+    )
+    return response
