@@ -23,6 +23,23 @@ def order_list(request):
         'is_admin': request.user.role == 'ADMIN',
     })
 
+
+@staff_or_admin_required
+def order_index(request):
+    status = request.GET.get('status')
+    customer = request.GET.get('customer')
+    orders = Order.objects.select_related('user').order_by('-created_at')
+    if status:
+        orders = orders.filter(status=status)
+    if customer:
+        orders = orders.filter(customer_name__icontains=customer)
+    return render(request, 'orders/order_index.html', {
+        'orders': orders,
+        'status_choices': Order.STATUS_CHOICES,
+        'status': status,
+        'customer': customer,
+    })
+
 @staff_or_admin_required
 def order_detail(request, order_id):
     order = get_object_or_404(
