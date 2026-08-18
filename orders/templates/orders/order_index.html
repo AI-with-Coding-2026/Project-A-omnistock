@@ -1,0 +1,23 @@
+<table>
+<thead>
+<tr>
+<th>Order #</th><th>Customer</th><th>Sales Rep</th><th>Total</th><th>Date</th><th>Status</th>
+</tr>
+</thead>
+<tbody>
+{% for o in orders %}
+<tr>
+<td>{{ o.order_number }}</td>
+<td>{{ o.customer_name }}</td>
+<td>{{ o.user.username }}</td>
+<td>{{ o.total_amount }}</td>
+<td>{{ o.created_at|date:"Y-m-d" }}</td>
+<td>
+<span class="badge badge-{{ o.status }}">
+{{ o.get_status_display }}
+</span>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>

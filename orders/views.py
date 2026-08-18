@@ -16,13 +16,9 @@ ORDER_CANCEL_REDIRECT = 'order_list'
 
 
 @staff_or_admin_required
-def order_list(request):
-    orders = Order.objects.select_related('user').all()
-
-    return render(request, 'orders/order_list.html', {
-        'orders': orders,
-        'is_admin': request.user.role == 'ADMIN',
-    })
+def order_index(request):
+    orders = Order.objects.select_related('user').order_by('-created_at')
+    return render(request, 'orders/order_index.html', {'orders': orders})
 
 @staff_or_admin_required
 def order_detail(request, order_id):

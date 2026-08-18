@@ -666,3 +666,62 @@ class OrderDetailTests(TestCase):
             response.url,
             f'{reverse("login")}?next={detail_url}',
         )
+
+
+class OrderIndexTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='index_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.sales_rep = User.objects.create_user(
+            username='index_sales_rep',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        self.customer = User.objects.create_user(
+            username='index_customer',
+            password='password123',
+            role='CUSTOMER',
+        )
+        self.order = Order.objects.create(
+            user=self.admin,
+            customer_name='Index Customer',
+            total_amount=Decimal('99.99'),
+            status=Order.STATUS_PENDING,
+        )
+
+    def test_staff_can_view_order_index_with_order_details(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(reverse('order_list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'orders/order_index.html')
+        self.assertContains(response, self.order.order_number)
+        self.assertContains(response, self.order.customer_name)
+        self.assertContains(response, self.order.user.username)
+        self.assertContains(response, str(self.order.total_amount))
+        self.assertContains(response, self.order.created_at.strftime('%Y-%m-%d'))
+        self.assertContains(response, self.order.get_status_display())
+        self.assertContains(response, f'badge badge-{self.order.status}')
+
+    def test_admin_can_view_order_index(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('order_list'))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_customer_is_redirected_to_login(self):
+        self.client.force_login(self.customer)
+
+        order_index_url = reverse('order_list')
+        response = self.client.get(order_index_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f'{reverse("login")}?next={order_index_url}',
+        )
