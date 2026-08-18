@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 
 from django.contrib import messages
@@ -9,8 +10,10 @@ from core.utils import admin_required, staff_or_admin_required
 from inventory.models import Product
 
 from .forms import OrderForm
-from .models import Order, OrderItem
+from .models import InvalidOrderTransitionError, Order, OrderItem
 
+
+logger = logging.getLogger(__name__)
 
 ORDER_CANCEL_REDIRECT = 'order_list'
 
@@ -168,6 +171,37 @@ def order_create(request):
     })
 
 
+@staff_or_admin_required
+@transaction.atomic
+def order_complete(request, pk):
+    order = get_object_or_404(
+        Order.objects.select_for_update(),
+        pk=pk,
+    )
+
+    if not order.can_mark_completed():
+        logger.warning(
+            "Invalid status transition attempted: Cannot mark Order #%s as completed from status '%s' (User: %s)",
+            order.pk,
+            order.status,
+            request.user,
+        )
+        messages.warning(
+            request,
+            f"Order #{order.pk} cannot be marked as completed from its current status '{order.get_status_display()}'.",
+        )
+        return redirect('order_list')
+
+    try:
+        order.mark_completed()
+        messages.success(request, f"Order #{order.pk} has been marked as completed.")
+    except InvalidOrderTransitionError as e:
+        logger.error("Error completing order #%s: %s", order.pk, str(e))
+        messages.error(request, str(e))
+
+    return redirect('order_list')
+
+
 @admin_required
 @transaction.atomic
 def order_cancel(request, pk):
@@ -176,26 +210,30 @@ def order_cancel(request, pk):
         pk=pk,
     )
 
-    if order.status == Order.STATUS_CANCELLED:
-        messages.warning(request, 'This order is already cancelled.')
-        return redirect(ORDER_CANCEL_REDIRECT)
-
-    if order.status != Order.STATUS_COMPLETED:
+    if not order.can_cancel():
+        logger.warning(
+            "Invalid status transition attempted: Cannot cancel Order #%s from status '%s' (User: %s)",
+            order.pk,
+            order.status,
+            request.user,
+        )
         messages.warning(
             request,
-            'Only completed orders can be cancelled.',
+            f"This order cannot be cancelled from its current status '{order.get_status_display()}'.",
         )
         return redirect(ORDER_CANCEL_REDIRECT)
 
-    for item in order.items.all():
-        Product.objects.filter(id=item.product_id).update(
-            stock_quantity=F('stock_quantity') + item.quantity,
-        )
+    previous_status = order.status
+    try:
+        order.cancel()
+        if previous_status == Order.STATUS_COMPLETED:
+            messages.success(request, 'Order cancelled and stock restored.')
+        else:
+            messages.success(request, 'Order cancelled.')
+    except InvalidOrderTransitionError as e:
+        logger.error("Error cancelling order #%s: %s", order.pk, str(e))
+        messages.error(request, str(e))
 
-    order.status = Order.STATUS_CANCELLED
-    order.save(update_fields=['status'])
-
-    messages.success(request, 'Order cancelled and stock restored.')
     return redirect(ORDER_CANCEL_REDIRECT)
 
 

@@ -1,11 +1,12 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
 from inventory.models import Product, Supplier
-from orders.models import Order, OrderItem
+from orders.models import InvalidOrderTransitionError, Order, OrderItem
 
 
 User = get_user_model()
@@ -492,7 +493,7 @@ class OrderCancellationTests(TestCase):
         self.assertEqual(order.status, Order.STATUS_COMPLETED)
         self.assertEqual(self.product.stock_quantity, 8)
 
-    def test_pending_order_cannot_be_cancelled_or_restore_stock(self):
+    def test_pending_order_can_be_cancelled_without_stock_restoration(self):
         order = Order.objects.create(
             user=self.admin,
             customer_name='Pending Customer',
@@ -516,8 +517,291 @@ class OrderCancellationTests(TestCase):
         order.refresh_from_db()
         self.product.refresh_from_db()
 
-        self.assertEqual(order.status, Order.STATUS_PENDING)
+        self.assertEqual(order.status, Order.STATUS_CANCELLED)
         self.assertEqual(self.product.stock_quantity, 8)
+
+class OrderStateMachineModelTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='model_tester',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.supplier = Supplier.objects.create(
+            name='Model Supplier',
+            email='model_supplier@example.com',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='Model Product',
+            unit_price=Decimal('20.00'),
+            stock_quantity=10,
+        )
+
+    def create_order(self, status=Order.STATUS_PENDING):
+        order = Order.objects.create(
+            user=self.user,
+            customer_name='Model Customer',
+            status=status,
+            total_amount=Decimal('40.00'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal('20.00'),
+        )
+        return order
+
+    def test_can_mark_completed(self):
+        pending_order = self.create_order(status=Order.STATUS_PENDING)
+        completed_order = self.create_order(status=Order.STATUS_COMPLETED)
+        cancelled_order = self.create_order(status=Order.STATUS_CANCELLED)
+
+        self.assertTrue(pending_order.can_mark_completed())
+        self.assertFalse(completed_order.can_mark_completed())
+        self.assertFalse(cancelled_order.can_mark_completed())
+
+    def test_can_cancel(self):
+        pending_order = self.create_order(status=Order.STATUS_PENDING)
+        completed_order = self.create_order(status=Order.STATUS_COMPLETED)
+        cancelled_order = self.create_order(status=Order.STATUS_CANCELLED)
+
+        self.assertTrue(pending_order.can_cancel())
+        self.assertTrue(completed_order.can_cancel())
+        self.assertFalse(cancelled_order.can_cancel())
+
+    def test_can_transition_to(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        self.assertTrue(order.can_transition_to(Order.STATUS_COMPLETED))
+        self.assertTrue(order.can_transition_to(Order.STATUS_CANCELLED))
+        self.assertFalse(order.can_transition_to(Order.STATUS_PENDING))
+
+        order.status = Order.STATUS_COMPLETED
+        self.assertTrue(order.can_transition_to(Order.STATUS_CANCELLED))
+        self.assertFalse(order.can_transition_to(Order.STATUS_PENDING))
+        self.assertFalse(order.can_transition_to(Order.STATUS_COMPLETED))
+
+        order.status = Order.STATUS_CANCELLED
+        self.assertFalse(order.can_transition_to(Order.STATUS_PENDING))
+        self.assertFalse(order.can_transition_to(Order.STATUS_COMPLETED))
+        self.assertFalse(order.can_transition_to(Order.STATUS_CANCELLED))
+
+    def test_mark_completed_success(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        order.mark_completed()
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_COMPLETED)
+
+    def test_mark_completed_raises_error_when_invalid(self):
+        completed_order = self.create_order(status=Order.STATUS_COMPLETED)
+        with self.assertRaises(InvalidOrderTransitionError):
+            completed_order.mark_completed()
+
+        cancelled_order = self.create_order(status=Order.STATUS_CANCELLED)
+        with self.assertRaises(InvalidOrderTransitionError):
+            cancelled_order.mark_completed()
+
+    def test_cancel_from_completed_restores_stock(self):
+        order = self.create_order(status=Order.STATUS_COMPLETED)
+        initial_stock = self.product.stock_quantity
+        order.cancel()
+        order.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(order.status, Order.STATUS_CANCELLED)
+        self.assertEqual(self.product.stock_quantity, initial_stock + 2)
+
+    def test_cancel_from_pending_does_not_restore_stock(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        initial_stock = self.product.stock_quantity
+        order.cancel()
+        order.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(order.status, Order.STATUS_CANCELLED)
+        self.assertEqual(self.product.stock_quantity, initial_stock)
+
+    def test_cancel_raises_error_on_cancelled_order(self):
+        order = self.create_order(status=Order.STATUS_CANCELLED)
+        with self.assertRaises(InvalidOrderTransitionError):
+            order.cancel()
+
+    def test_model_save_blocks_invalid_status_mutation(self):
+        order = self.create_order(status=Order.STATUS_CANCELLED)
+        order.status = Order.STATUS_PENDING
+        with self.assertRaises(InvalidOrderTransitionError):
+            order.save()
+
+        completed_order = self.create_order(status=Order.STATUS_COMPLETED)
+        completed_order.status = Order.STATUS_PENDING
+        with self.assertRaises(InvalidOrderTransitionError):
+            completed_order.save()
+
+    def test_direct_save_completed_to_cancelled_restores_stock(self):
+        """Any write path (e.g. Django admin) must restore stock, not just cancel()."""
+        order = self.create_order(status=Order.STATUS_COMPLETED)
+        initial_stock = Product.objects.get(pk=self.product.pk).stock_quantity
+
+        order.status = Order.STATUS_CANCELLED
+        order.save()
+
+        order.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(order.status, Order.STATUS_CANCELLED)
+        self.assertEqual(self.product.stock_quantity, initial_stock + 2)
+
+    def test_cancel_without_save_does_not_touch_stock(self):
+        """Stock must never be restored unless the status change is persisted."""
+        order = self.create_order(status=Order.STATUS_COMPLETED)
+        initial_stock = Product.objects.get(pk=self.product.pk).stock_quantity
+
+        order.cancel(save=False)
+
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, initial_stock)
+        self.assertEqual(
+            Order.objects.get(pk=order.pk).status,
+            Order.STATUS_COMPLETED,
+        )
+
+    def test_resaving_cancelled_order_does_not_restore_stock_again(self):
+        """Stock restoration must be tied to the transition, not to every save."""
+        order = self.create_order(status=Order.STATUS_COMPLETED)
+        initial_stock = Product.objects.get(pk=self.product.pk).stock_quantity
+
+        order.cancel()
+        order.save()
+        order.customer_name = 'Renamed Customer'
+        order.save()
+
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, initial_stock + 2)
+
+    def test_cancelling_pending_order_never_restores_stock_via_save(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        initial_stock = Product.objects.get(pk=self.product.pk).stock_quantity
+
+        order.status = Order.STATUS_CANCELLED
+        order.save()
+
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, initial_stock)
+
+    def test_full_clean_blocks_invalid_transition(self):
+        """Admin/ModelForm validation path must reject terminal-state changes."""
+        order = self.create_order(status=Order.STATUS_CANCELLED)
+        order.status = Order.STATUS_PENDING
+
+        with self.assertRaises(ValidationError):
+            order.full_clean()
+
+
+class OrderCompleteViewTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='complete_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.sales_rep = User.objects.create_user(
+            username='complete_sales_rep',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        self.supplier = Supplier.objects.create(
+            name='Complete Supplier',
+            email='complete_supplier@example.com',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='Complete Product',
+            unit_price=Decimal('30.00'),
+            stock_quantity=15,
+        )
+
+    def create_order(self, status=Order.STATUS_PENDING):
+        order = Order.objects.create(
+            user=self.admin,
+            customer_name='Complete View Customer',
+            status=status,
+            total_amount=Decimal('60.00'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal('30.00'),
+        )
+        return order
+
+    def test_staff_can_mark_pending_order_completed(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.post(
+            reverse('order_complete', args=[order.pk])
+        )
+
+        self.assertRedirects(response, reverse('order_list'))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_COMPLETED)
+
+    def test_admin_can_mark_pending_order_completed(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse('order_complete', args=[order.pk])
+        )
+
+        self.assertRedirects(response, reverse('order_list'))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_COMPLETED)
+
+    def test_complete_view_blocks_already_completed_order(self):
+        order = self.create_order(status=Order.STATUS_COMPLETED)
+        self.client.force_login(self.sales_rep)
+
+        with self.assertLogs('orders.views', level='WARNING') as cm:
+            response = self.client.post(
+                reverse('order_complete', args=[order.pk])
+            )
+            self.assertTrue(any('Invalid status transition attempted' in msg for msg in cm.output))
+
+        self.assertRedirects(response, reverse('order_list'))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_COMPLETED)
+
+    def test_complete_view_blocks_cancelled_order(self):
+        order = self.create_order(status=Order.STATUS_CANCELLED)
+        self.client.force_login(self.sales_rep)
+
+        with self.assertLogs('orders.views', level='WARNING') as cm:
+            response = self.client.post(
+                reverse('order_complete', args=[order.pk])
+            )
+            self.assertTrue(any('Invalid status transition attempted' in msg for msg in cm.output))
+
+        self.assertRedirects(response, reverse('order_list'))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_CANCELLED)
+
+    def test_cancel_view_logs_warning_on_invalid_transition(self):
+        order = self.create_order(status=Order.STATUS_CANCELLED)
+        self.client.force_login(self.admin)
+
+        with self.assertLogs('orders.views', level='WARNING') as cm:
+            response = self.client.post(
+                reverse('order_cancel', args=[order.pk])
+            )
+            self.assertTrue(any('Invalid status transition attempted' in msg for msg in cm.output))
+
+        self.assertRedirects(response, reverse('order_list'))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_CANCELLED)
+
 
 class OrderDetailTests(TestCase):
     def setUp(self):

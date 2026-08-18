@@ -144,17 +144,17 @@
                     Order Status
                 </span>
 
-                {% if order.status == 'completed' %}
+                {% if order.status == 'completed' or order.status == 'COMPLETED' %}
                     <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                         Completed
                     </span>
-                {% elif order.status == 'cancelled' %}
+                {% elif order.status == 'cancelled' or order.status == 'CANCELLED' %}
                     <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
                         Cancelled
                     </span>
                 {% else %}
-                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
-                        {{ order.status }}
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                        {{ order.get_status_display|default:order.status }}
                     </span>
                 {% endif %}
             </div>
