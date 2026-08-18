@@ -654,7 +654,7 @@ class OrderDetailTests(TestCase):
         unauthorized_user = User.objects.create_user(
             username='unauthorized_user',
             password='testpass123',
-            role='CUSTOMER',
+            role=User.ROLE_CUSTOMER,
         )
         self.client.force_login(unauthorized_user)
 
@@ -683,7 +683,7 @@ class OrderIndexTests(TestCase):
         self.customer = User.objects.create_user(
             username='index_customer',
             password='password123',
-            role='CUSTOMER',
+            role=User.ROLE_CUSTOMER,
         )
         self.order = Order.objects.create(
             user=self.admin,
@@ -695,7 +695,7 @@ class OrderIndexTests(TestCase):
     def test_staff_can_view_order_index_with_order_details(self):
         self.client.force_login(self.sales_rep)
 
-        response = self.client.get(reverse('order_list'))
+        response = self.client.get(reverse('order_index'))
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'orders/order_index.html')
@@ -710,14 +710,14 @@ class OrderIndexTests(TestCase):
     def test_admin_can_view_order_index(self):
         self.client.force_login(self.admin)
 
-        response = self.client.get(reverse('order_list'))
+        response = self.client.get(reverse('order_index'))
 
         self.assertEqual(response.status_code, 200)
 
     def test_customer_is_redirected_to_login(self):
         self.client.force_login(self.customer)
 
-        order_index_url = reverse('order_list')
+        order_index_url = reverse('order_index')
         response = self.client.get(order_index_url)
 
         self.assertEqual(response.status_code, 302)
@@ -725,3 +725,33 @@ class OrderIndexTests(TestCase):
             response.url,
             f'{reverse("login")}?next={order_index_url}',
         )
+
+    def test_filter_by_status(self):
+        completed = Order.objects.create(
+            user=self.admin,
+            customer_name='Completed Customer',
+            total_amount=Decimal('50.00'),
+            status=Order.STATUS_COMPLETED,
+        )
+
+        self.client.force_login(self.sales_rep)
+        response = self.client.get(reverse('order_index'), {'status': Order.STATUS_PENDING})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.order.order_number)
+        self.assertNotContains(response, completed.order_number)
+
+    def test_filter_by_customer_name(self):
+        other = Order.objects.create(
+            user=self.admin,
+            customer_name='Other Customer',
+            total_amount=Decimal('50.00'),
+            status=Order.STATUS_PENDING,
+        )
+
+        self.client.force_login(self.sales_rep)
+        response = self.client.get(reverse('order_index'), {'customer': 'Index'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.order.order_number)
+        self.assertNotContains(response, other.order_number)

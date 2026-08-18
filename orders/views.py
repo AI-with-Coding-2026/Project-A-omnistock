@@ -16,6 +16,15 @@ ORDER_CANCEL_REDIRECT = 'order_list'
 
 
 @staff_or_admin_required
+def order_list(request):
+    orders = Order.objects.select_related('user').prefetch_related('items__product').all()
+    return render(request, 'orders/order_list.html', {
+        'orders': orders,
+        'is_admin': request.user.role == 'ADMIN',
+    })
+
+
+@staff_or_admin_required
 def order_index(request):
     status = request.GET.get('status')
     customer = request.GET.get('customer')
