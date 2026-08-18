@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Invoice #{{ order.invoice.invoice_number|default:order.pk }} - OmniStock</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 16mm 14mm 18mm 14mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #1e2530;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ============ Top Brand Banner ============ */
+        .banner-table {
+            width: 100%;
+            background-color: #12182b;
+            color: #ffffff;
+            margin-bottom: 26px;
+            border-radius: 6px;
+        }
+
+        .banner-cell-left {
+            padding: 22px 24px;
+            vertical-align: middle;
+        }
+
+        .banner-cell-right {
+            padding: 22px 24px;
+            vertical-align: middle;
+            text-align: right;
+        }
+
+        .brand-logo-mark {
+            display: inline-block;
+            background: linear-gradient(135deg, #5b6cff 0%, #4338ca 100%);
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 14px;
+            width: 26px;
+            height: 26px;
+            line-height: 26px;
+            text-align: center;
+            border-radius: 6px;
+            margin-right: 10px;
+        }
+
+        .brand-name {
+            font-size: 19px;
+            font-weight: bold;
+            color: #ffffff;
+            letter-spacing: 0.3px;
+        }
+
+        .brand-subtext {
+            font-size: 9px;
+            color: #8b93b0;
+            margin-top: 4px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }
+
+        .doc-type {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .doc-ref {
+            font-size: 10.5px;
+            color: #aab1cc;
+            margin-top: 6px;
+        }
+
+        .doc-ref strong {
+            color: #e2e5f5;
+        }
+
+        /* ============ 3-Column Info Cards ============ */
+        .info-grid {
+            width: 100%;
+            margin-bottom: 24px;
+        }
+
+        .info-card {
+            background-color: #f7f8fc;
+            border: 1px solid #e7e9f3;
+            border-radius: 6px;
+            padding: 14px 16px;
+            vertical-align: top;
+        }
+
+        .info-card-spacer {
+            width: 3%;
+        }
+
+        .card-label {
+            font-size: 8.5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #6b7290;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #e7e9f3;
+        }
+
+        .card-value-primary {
+            font-size: 13.5px;
+            font-weight: bold;
+            color: #12182b;
+            margin-bottom: 4px;
+        }
+
+        .card-value-secondary {
+            font-size: 9.5px;
+            color: #565d78;
+            line-height: 1.6;
+        }
+
+        .card-value-secondary strong {
+            color: #3a4160;
+        }
+
+        /* ============ Status Badges ============ */
+        .status-badge {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            margin-top: 2px;
+        }
+
+        .status-completed {
+            background-color: #e3f9ed;
+            color: #0f8a4c;
+            border: 1px solid #bdf0d3;
+        }
+
+        .status-cancelled {
+            background-color: #fde9e9;
+            color: #c81e3a;
+            border: 1px solid #f8c9cf;
+        }
+
+        .status-pending {
+            background-color: #fef3d9;
+            color: #b6790a;
+            border: 1px solid #fbe3a8;
+        }
+
+        /* ============ Line Items Table ============ */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 22px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .items-table th {
+            background-color: #12182b;
+            color: #ffffff;
+            font-size: 8.5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            padding: 11px 12px;
+            border: none;
+        }
+
+        .items-table td {
+            padding: 11px 12px;
+            border-bottom: 1px solid #edeef5;
+            font-size: 11px;
+            color: #3a4160;
+            vertical-align: middle;
+        }
+
+        .items-table tr.even td {
+            background-color: #f7f8fc;
+        }
+
+        .items-table tr:last-child td {
+            border-bottom: 2px solid #12182b;
+        }
+
+        .product-title {
+            font-weight: bold;
+            color: #12182b;
+            font-size: 11px;
+        }
+
+        .product-sku {
+            font-size: 8.5px;
+            color: #8b93b0;
+            margin-top: 3px;
+            letter-spacing: 0.2px;
+        }
+
+        /* ============ Totals & Notes ============ */
+        .bottom-section {
+            width: 100%;
+            margin-top: 8px;
+            margin-bottom: 28px;
+        }
+
+        .notes-cell {
+            vertical-align: top;
+            width: 52%;
+            padding-right: 20px;
+        }
+
+        .notes-box {
+            background-color: #f7f8fc;
+            border: 1px solid #e7e9f3;
+            border-radius: 6px;
+            padding: 14px 16px;
+            height: 100%;
+        }
+
+        .notes-title {
+            font-size: 8.5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #565d78;
+            margin-bottom: 7px;
+        }
+
+        .notes-body {
+            font-size: 9.5px;
+            color: #6b7290;
+            line-height: 1.6;
+        }
+
+        .totals-cell {
+            vertical-align: top;
+            width: 48%;
+        }
+
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #e7e9f3;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .totals-row td {
+            padding: 9px 14px;
+            font-size: 10.5px;
+            color: #565d78;
+            border-bottom: 1px solid #f0f1f7;
+        }
+
+        .grand-total-row td {
+            padding: 13px 14px;
+            background-color: #12182b;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        /* ============ Footer ============ */
+        #pdfFooter {
+            border-top: 1px solid #e7e9f3;
+            padding-top: 8px;
+            font-size: 8.5px;
+            color: #a3a9c2;
+            width: 100%;
+        }
+
+        .footer-left {
+            text-align: left;
+            width: 60%;
+        }
+
+        .footer-right {
+            text-align: right;
+            width: 40%;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. Top Brand Banner -->
+    <table class="banner-table" cellpadding="0" cellspacing="0">
+        <tr>
+            <td class="banner-cell-left">
+                <table cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td style="vertical-align: middle;">
+                            <span class="brand-logo-mark">O</span>
+                        </td>
+                        <td style="vertical-align: middle;">
+                            <span class="brand-name">OmniStock</span>
+                            <div class="brand-subtext">Enterprise Inventory &amp; Order Management</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td class="banner-cell-right">
+                <div class="doc-type">Invoice</div>
+                <div class="doc-ref">
+                    <strong>Invoice #:</strong> {{ order.invoice.invoice_number|default:order.pk }}<br>
+                    <strong>Order Ref:</strong> {{ order.order_number }}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- 2. Structured Metadata Info Cards -->
+    <table class="info-grid" cellpadding="0" cellspacing="0">
+        <tr>
+            <!-- Card 1: Bill To -->
+            <td class="info-card" style="width: 32%;">
+                <div class="card-label">Billed To</div>
+                <div class="card-value-primary">{{ order.customer_name }}</div>
+                <div class="card-value-secondary">
+                    Customer Account<br>
+                    Verified Customer
+                </div>
+            </td>
+
+            <td class="info-card-spacer"></td>
+
+            <!-- Card 2: Order Reference -->
+            <td class="info-card" style="width: 32%;">
+                <div class="card-label">Order Details</div>
+                <div class="card-value-primary">{{ order.order_number }}</div>
+                <div class="card-value-secondary">
+                    <strong>Created:</strong> {{ order.created_at|date:"M d, Y H:i" }}<br>
+                    <strong>Processed by:</strong> {{ order.user.username|default:"System Admin" }}
+                </div>
+            </td>
+
+            <td class="info-card-spacer"></td>
+
+            <!-- Card 3: Invoice Status -->
+            <td class="info-card" style="width: 32%;">
+                <div class="card-label">Payment &amp; Status</div>
+                <div style="margin-bottom: 6px;">
+                    {% if order.status == 'completed' or order.status == 'COMPLETED' %}
+                        <span class="status-badge status-completed">Completed</span>
+                    {% elif order.status == 'cancelled' or order.status == 'CANCELLED' %}
+                        <span class="status-badge status-cancelled">Cancelled</span>
+                    {% else %}
+                        <span class="status-badge status-pending">{{ order.get_status_display|default:order.status }}</span>
+                    {% endif %}
+                </div>
+                <div class="card-value-secondary">
+                    <strong>Issue Date:</strong> {{ order.created_at|date:"F d, Y" }}<br>
+                    <strong>Terms:</strong> Due upon receipt
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- 3. Line Items Table -->
+    <table class="items-table" cellpadding="0" cellspacing="0">
+        <thead>
+            <tr>
+                <th style="text-align: center; width: 6%;">#</th>
+                <th style="text-align: left; width: 44%;">Item Description</th>
+                <th style="text-align: center; width: 14%;">Quantity</th>
+                <th style="text-align: right; width: 18%;">Unit Price</th>
+                <th style="text-align: right; width: 18%;">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in order.items.all %}
+                <tr class="{% cycle 'odd' 'even' %}">
+                    <td style="text-align: center; color: #8b93b0; font-size: 10px;">{{ forloop.counter }}</td>
+                    <td style="text-align: left;">
+                        <div class="product-title">{{ item.product.name }}</div>
+                        {% if item.product.sku %}
+                            <div class="product-sku">SKU: {{ item.product.sku }}{% if item.product.supplier %} &bull; Supplier: {{ item.product.supplier.name }}{% endif %}</div>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center; font-weight: bold; color: #12182b;">{{ item.quantity }}</td>
+                    <td style="text-align: right; color: #565d78;">${{ item.unit_price }}</td>
+                    <td style="text-align: right; font-weight: bold; color: #12182b;">${{ item.line_total }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: #8b93b0; padding: 26px;">
+                        No line items found for this order.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- 4. Financial Totals & Payment Notes -->
+    <table class="bottom-section" cellpadding="0" cellspacing="0">
+        <tr>
+            <td class="notes-cell">
+                <div class="notes-box">
+                    <div class="notes-title">Payment Instructions &amp; Notes</div>
+                    <div class="notes-body">
+                        Please include the order reference number <strong>{{ order.order_number }}</strong> with your remittance.<br><br>
+                        Thank you for your business with OmniStock!
+                    </div>
+                </div>
+            </td>
+            <td class="totals-cell">
+                <table class="totals-table" cellpadding="0" cellspacing="0">
+                    <tr class="totals-row">
+                        <td style="width: 55%; color: #6b7290;">Subtotal:</td>
+                        <td style="text-align: right; font-weight: bold; color: #12182b;">${{ order.total_amount }}</td>
+                    </tr>
+                    <tr class="totals-row">
+                        <td style="color: #6b7290;">Tax (0%):</td>
+                        <td style="text-align: right; color: #565d78;">$0.00</td>
+                    </tr>
+                    <tr class="grand-total-row">
+                        <td>Total Due:</td>
+                        <td style="text-align: right; font-size: 14.5px;">${{ order.total_amount }}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <!-- 5. Fixed PDF Footer (Rendered in footer frame on all pages) -->
+    <div id="pdfFooter">
+        <table style="width: 100%;" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="footer-left">
+                    OmniStock Inventory &amp; Order Processing System &bull; Confidential
+                </td>
+                <td class="footer-right">
+                    Generated: {{ order.created_at|date:"M d, Y" }}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+</body>
+</html>

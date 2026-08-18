@@ -2,11 +2,13 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.template.loader import render_to_string
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from inventory.models import Product, Supplier
-from orders.models import InvalidOrderTransitionError, Order, OrderItem
+from orders.models import InvalidOrderTransitionError, Invoice, Order, OrderItem
+from orders.pdf import render_html_to_pdf
 
 
 User = get_user_model()
@@ -1013,3 +1015,48 @@ class InvoicePdfTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
+
+    def test_invoice_pdf_template_renders_order_data(self):
+        self.product.sku = 'PDF-SKU-001'
+        self.product.save()
+
+        request = RequestFactory().get('/')
+        html = render_to_string(
+            'orders/invoice_pdf.html',
+            {'order': self.order},
+            request=request,
+        )
+
+        self.assertIn('OmniStock', html)
+        self.assertIn(self.order.customer_name, html)
+        self.assertIn(self.order.order_number, html)
+        self.assertIn('PDF Product', html)
+        self.assertIn('PDF-SKU-001', html)
+        self.assertIn('PDF Supplier', html)
+        self.assertIn('status-completed', html)
+        self.assertIn('$25.00', html)
+
+    def test_invoice_pdf_template_converts_to_valid_pdf(self):
+        request = RequestFactory().get('/')
+        html = render_to_string(
+            'orders/invoice_pdf.html',
+            {'order': self.order},
+            request=request,
+        )
+        pdf_bytes = render_html_to_pdf(html)
+
+        self.assertTrue(pdf_bytes)
+        self.assertTrue(pdf_bytes.startswith(b'%PDF'))
+
+    def test_invoice_pdf_template_uses_invoice_number_when_present(self):
+        invoice = Invoice.objects.create(order=self.order)
+
+        request = RequestFactory().get('/')
+        html = render_to_string(
+            'orders/invoice_pdf.html',
+            {'order': self.order},
+            request=request,
+        )
+
+        self.assertIn(invoice.invoice_number, html)
+        self.assertNotIn(f'Invoice #:</strong> {self.order.pk}', html)

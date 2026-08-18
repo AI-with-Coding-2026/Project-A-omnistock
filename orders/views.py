@@ -253,7 +253,7 @@ def invoice_view(request, pk):
 def invoice_pdf(request, order_id):
     order = get_object_or_404(Order, pk=order_id)
 
-    html = render_to_string('orders/invoice.html', {'order': order}, request=request)
+    html = render_to_string('orders/invoice_pdf.html', {'order': order}, request=request)
     pdf_bytes = render_html_to_pdf(html)
 
     if not pdf_bytes:
