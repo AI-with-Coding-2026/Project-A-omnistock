@@ -15,19 +15,40 @@
                     <path d="M14 9a3 3 0 013 3c0 1.6-1.2 2-1.2 3.5"/>
                 </svg>
             </div>
-            <h1 class="text-2xl font-bold text-gray-900">Welcome back</h1>
-            <p class="text-gray-500 mt-1 text-sm">Sign in to your OmniStock account</p>
+
+            <h1 class="text-2xl font-bold text-gray-900">
+                Welcome back
+            </h1>
+
+            <p class="text-gray-500 mt-1 text-sm">
+                Sign in to your OmniStock account
+            </p>
         </div>
 
-        {% if form.errors %}
+        {% if form.non_field_errors %}
             <div class="flex items-start gap-2 bg-red-50 border border-red-200
                         text-red-700 rounded-lg p-3 mb-6 text-sm">
-                <svg class="w-4 h-4 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+
+                <svg class="w-4 h-4 mt-0.5 shrink-0"
+                     viewBox="0 0 20 20"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.6">
+
                     <circle cx="10" cy="10" r="7"/>
                     <path d="M10 6.5v4"/>
-                    <circle cx="10" cy="13.2" r="0.4" fill="currentColor"/>
+                    <circle cx="10"
+                            cy="13.2"
+                            r="0.4"
+                            fill="currentColor"/>
                 </svg>
-                <span>That username or password isn't right. Try again.</span>
+
+                <div>
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+
             </div>
         {% endif %}
 
@@ -36,35 +57,78 @@
             {% csrf_token %}
 
             <div>
-                <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1.5">
+                <label
+                    for="{{ form.username.id_for_label }}"
+                    class="block text-sm font-medium text-gray-700 mb-1.5"
+                >
                     Username
                 </label>
+
                 {{ form.username }}
+
+                {% if form.username.errors %}
+                    <div class="text-red-600 text-xs mt-1">
+                        {% for error in form.username.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <div>
-                <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1.5">
+                <label
+                    for="{{ form.password.id_for_label }}"
+                    class="block text-sm font-medium text-gray-700 mb-1.5"
+                >
                     Password
                 </label>
+
                 <div class="relative">
+
                     {{ form.password }}
+
                     <button
                         type="button"
                         id="togglePassword"
                         aria-label="Show password"
                         class="absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400 hover:text-gray-600"
                     >
-                        <svg class="eye-open w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+
+                        <svg
+                            class="eye-open w-5 h-5"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                        >
                             <path d="M1 10s3-5.5 9-5.5 9 5.5 9 5.5-3 5.5-9 5.5-9-5.5-9-5.5z"/>
                             <circle cx="10" cy="10" r="2.5"/>
                         </svg>
-                        <svg class="eye-closed w-5 h-5 hidden" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+
+                        <svg
+                            class="eye-closed w-5 h-5 hidden"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                        >
                             <path d="M1 10s3-5.5 9-5.5 9 5.5 9 5.5-3 5.5-9 5.5-9-5.5-9-5.5z"/>
                             <circle cx="10" cy="10" r="2.5"/>
                             <path d="M2 2l16 16"/>
                         </svg>
+
                     </button>
+
                 </div>
+
+                {% if form.password.errors %}
+                    <div class="text-red-600 text-xs mt-1">
+                        {% for error in form.password.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
             </div>
 
             <button
@@ -87,14 +151,23 @@
     (function () {
         var toggle = document.getElementById('togglePassword');
         var pwd = document.getElementById('id_password');
-        if (!toggle || !pwd) return;
+
+        if (!toggle || !pwd) {
+            return;
+        }
 
         toggle.addEventListener('click', function () {
             var isHidden = pwd.type === 'password';
+
             pwd.type = isHidden ? 'text' : 'password';
+
             toggle.querySelector('.eye-open').classList.toggle('hidden');
             toggle.querySelector('.eye-closed').classList.toggle('hidden');
-            toggle.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+
+            toggle.setAttribute(
+                'aria-label',
+                isHidden ? 'Hide password' : 'Show password'
+            );
         });
     })();
 </script>

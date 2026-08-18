@@ -16,8 +16,23 @@ class RoleBasedLoginView(LoginView):
     authentication_form = StyledLoginForm
     redirect_authenticated_user = True
 
+    def form_valid(self, form):
+        user = form.get_user()
+
+        # Customer accounts do not have access to the staff portal.
+        # Reject the login before Django creates an authenticated session.
+        if user.role == User.ROLE_CUSTOMER:
+            form.add_error(
+                None,
+                "Customer accounts cannot access the staff portal."
+            )
+            return self.form_invalid(form)
+
+        return super().form_valid(form)
+
     def get_success_url(self):
         user = self.request.user
+
         if user.role == User.ROLE_ADMIN:
             return reverse('dashboard')
         elif user.role == User.ROLE_INVENTORY_MANAGER:
@@ -63,7 +78,9 @@ def dashboard(request):
 
     if request.user.role == User.ROLE_ADMIN:
         context['title'] = 'Admin Dashboard'
-        context['description'] = 'Full access to inventory, suppliers, orders, and user management.'
+        context['description'] = (
+            'Full access to inventory, suppliers, orders, and user management.'
+        )
     elif request.user.role == User.ROLE_INVENTORY_MANAGER:
         context['title'] = 'Inventory Manager Dashboard'
         context['description'] = 'View inventory and suppliers; create orders.'
