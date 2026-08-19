@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db.models import F
 from django.template.loader import render_to_string
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
@@ -495,7 +496,7 @@ class OrderCancellationTests(TestCase):
         self.assertEqual(order.status, Order.STATUS_COMPLETED)
         self.assertEqual(self.product.stock_quantity, 8)
 
-    def test_pending_order_can_be_cancelled_without_stock_restoration(self):
+    def test_pending_order_cancellation_restores_deducted_stock(self):
         order = Order.objects.create(
             user=self.admin,
             customer_name='Pending Customer',
@@ -508,6 +509,12 @@ class OrderCancellationTests(TestCase):
             quantity=2,
             unit_price=Decimal('50.00'),
         )
+        # Simulate stock deduction from order_create path
+        Product.objects.filter(pk=self.product.pk).update(
+            stock_quantity=F('stock_quantity') - 2,
+        )
+        self.product.refresh_from_db()
+
         self.client.force_login(self.admin)
 
         response = self.client.post(
@@ -553,6 +560,10 @@ class OrderStateMachineModelTests(TestCase):
             quantity=2,
             unit_price=Decimal('20.00'),
         )
+        Product.objects.filter(pk=self.product.pk).update(
+            stock_quantity=F('stock_quantity') - 2,
+        )
+        self.product.refresh_from_db()
         return order
 
     def test_can_mark_completed(self):
@@ -614,7 +625,7 @@ class OrderStateMachineModelTests(TestCase):
         self.assertEqual(order.status, Order.STATUS_CANCELLED)
         self.assertEqual(self.product.stock_quantity, initial_stock + 2)
 
-    def test_cancel_from_pending_does_not_restore_stock(self):
+    def test_cancel_from_pending_restores_stock(self):
         order = self.create_order(status=Order.STATUS_PENDING)
         initial_stock = self.product.stock_quantity
         order.cancel()
@@ -622,7 +633,7 @@ class OrderStateMachineModelTests(TestCase):
         self.product.refresh_from_db()
 
         self.assertEqual(order.status, Order.STATUS_CANCELLED)
-        self.assertEqual(self.product.stock_quantity, initial_stock)
+        self.assertEqual(self.product.stock_quantity, initial_stock + 2)
 
     def test_cancel_raises_error_on_cancelled_order(self):
         order = self.create_order(status=Order.STATUS_CANCELLED)
@@ -681,7 +692,7 @@ class OrderStateMachineModelTests(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, initial_stock + 2)
 
-    def test_cancelling_pending_order_never_restores_stock_via_save(self):
+    def test_cancelling_pending_order_restores_stock_via_save(self):
         order = self.create_order(status=Order.STATUS_PENDING)
         initial_stock = Product.objects.get(pk=self.product.pk).stock_quantity
 
@@ -689,7 +700,7 @@ class OrderStateMachineModelTests(TestCase):
         order.save()
 
         self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, initial_stock)
+        self.assertEqual(self.product.stock_quantity, initial_stock + 2)
 
     def test_full_clean_blocks_invalid_transition(self):
         """Admin/ModelForm validation path must reject terminal-state changes."""
@@ -1111,7 +1122,7 @@ class InvoicePdfTests(TestCase):
 
         request = RequestFactory().get('/')
         html = render_to_string(
-            'orders/invoice_pdf.html',
+            'orders/invoice.html',
             {'order': self.order},
             request=request,
         )
@@ -1128,7 +1139,7 @@ class InvoicePdfTests(TestCase):
     def test_invoice_pdf_template_converts_to_valid_pdf(self):
         request = RequestFactory().get('/')
         html = render_to_string(
-            'orders/invoice_pdf.html',
+            'orders/invoice.html',
             {'order': self.order},
             request=request,
         )
@@ -1142,7 +1153,7 @@ class InvoicePdfTests(TestCase):
 
         request = RequestFactory().get('/')
         html = render_to_string(
-            'orders/invoice_pdf.html',
+            'orders/invoice.html',
             {'order': self.order},
             request=request,
         )

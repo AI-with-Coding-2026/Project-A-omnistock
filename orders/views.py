@@ -248,7 +248,7 @@ def order_cancel(request, pk):
         if previous_status == Order.STATUS_COMPLETED:
             messages.success(request, 'Order cancelled and stock restored.')
         else:
-            messages.success(request, 'Order cancelled.')
+            messages.success(request, 'Order cancelled and stock restored.')
     except InvalidOrderTransitionError as e:
         logger.error("Error cancelling order #%s: %s", order.pk, str(e))
         messages.error(request, str(e))
@@ -269,7 +269,7 @@ def invoice_view(request, pk):
 def invoice_pdf(request, order_id):
     order = get_object_or_404(Order, pk=order_id)
 
-    html = render_to_string('orders/invoice_pdf.html', {'order': order}, request=request)
+    html = render_to_string('orders/invoice.html', {'order': order, 'is_pdf': True}, request=request)
     pdf_bytes = render_html_to_pdf(html)
 
     if not pdf_bytes:

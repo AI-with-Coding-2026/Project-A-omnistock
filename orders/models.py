@@ -99,9 +99,9 @@ class Order(models.Model):
         """
         Transitions order to CANCELLED.
 
-        Stock restoration for a COMPLETED -> CANCELLED transition is handled by
-        save(), so that the stock movement is always committed together with the
-        status change and can never be applied without it.
+        Stock restoration for a PENDING/COMPLETED -> CANCELLED transition is
+        handled by save(), so that the stock movement is always committed
+        together with the status change and can never be applied without it.
         """
         if not self.can_cancel():
             raise InvalidOrderTransitionError(
@@ -121,7 +121,8 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         """
         Enforces the status state machine on every write and pairs the
-        COMPLETED -> CANCELLED transition with stock restoration atomically.
+        PENDING/COMPLETED -> CANCELLED transition with stock restoration
+        atomically.
         """
         stored_status = self._stored_status()
 
@@ -129,7 +130,7 @@ class Order(models.Model):
             self._assert_valid_transition(stored_status, self.status)
 
         restores_stock = (
-            stored_status == self.STATUS_COMPLETED
+            stored_status in (self.STATUS_PENDING, self.STATUS_COMPLETED)
             and self.status == self.STATUS_CANCELLED
         )
 
