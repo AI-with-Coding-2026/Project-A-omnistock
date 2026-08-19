@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from core.utils import admin_required, staff_or_admin_required
 from inventory.models import Product
@@ -32,6 +33,20 @@ def order_detail(request, order_id):
     return render(request, 'orders/order_detail.html', {
         'order': order
     })
+
+
+@staff_or_admin_required
+@require_POST
+def order_complete(request, order_id):
+    order = get_object_or_404(Order, pk=order_id)
+    if order.status == Order.STATUS_PENDING:
+        order.status = Order.STATUS_COMPLETED
+        order.save(update_fields=['status'])
+        messages.success(request, 'Order marked as completed.')
+    else:
+        messages.warning(request, 'Order cannot be marked as completed.')
+    return redirect('order_detail', order_id=order.id)
+
 
 @staff_or_admin_required
 @transaction.atomic
