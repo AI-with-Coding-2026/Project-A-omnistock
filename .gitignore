@@ -20,6 +20,19 @@ staticfiles/
 # IDEs
 .vscode/
 .idea/
+.claude/
 
 # OS
 .DS_Store
+
+# Personal documentation (Rostel)
+FINAL_CHECKLIST.md
+REQUIREMENTS_VERIFICATION.md
+TESTING_GUIDE.md
+supplier-management-rostel-summary.md
+supplier-management-create-edit.md
+fix_migrations.md
+hello.bat
+
+# Team workflow documentation (not tracked)
+GIT_WORKFLOW.md
