@@ -1,8 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
-
+from decimal import Decimal
+from orders.models import Order, OrderItem
 from .models import Product, Supplier
+
+
 
 User = get_user_model()
 
@@ -330,3 +333,52 @@ class ProductModelTest(TestCase):
 
         response = self.client.get('/inventory/products/create/')
         self.assertEqual(response.status_code, 200)
+
+
+class ProtectedDeletionTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='admin',
+            password='password123',
+            role='ADMIN',
+        )
+        self.client.force_login(self.admin)
+
+        self.supplier = Supplier.objects.create(
+            name='Test Supplier',
+            email='supplier@test.com',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='Test Product',
+            unit_price=Decimal('50.00'),
+            stock_quantity=10,
+        )
+        self.order = Order.objects.create(
+            user=self.admin,
+            customer_name='Customer',
+            total_amount=Decimal('100.00'),
+        )
+        self.order_item = OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal('50.00'),
+        )
+
+    def test_delete_protected_product_redirects_with_error(self):
+        """Deleting a product referenced by an OrderItem should not crash (500)."""
+        response = self.client.post(
+            reverse('product_delete', args=[self.product.pk])
+        )
+        self.assertRedirects(response, reverse('product_list'))
+        self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
+
+    def test_delete_protected_supplier_redirects_with_error(self):
+        """Deleting a supplier whose products are referenced by OrderItems should not crash (500)."""
+        response = self.client.post(
+            reverse('supplier_delete', args=[self.supplier.pk])
+        )
+        self.assertRedirects(response, reverse('supplier_index'))
+        self.assertTrue(Supplier.objects.filter(pk=self.supplier.pk).exists())
+        self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())

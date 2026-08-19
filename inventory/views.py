@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import ProtectedError, Q
 from django.contrib import messages
 from django.db import IntegrityError
 from django.db.models import F, BooleanField, Case, When, Value
@@ -113,8 +113,14 @@ def product_update(request, pk):
 def product_delete(request, pk):
     product = get_object_or_404(Product, pk=pk)
     if request.method == 'POST':
-        product.delete()
-        messages.success(request, 'Product deleted.')
+        try:
+            product.delete()
+            messages.success(request, 'Product deleted.')
+        except ProtectedError:
+            messages.error(
+                request,
+                'This product cannot be deleted because it is referenced by existing order history.'
+            )
         return redirect('product_list')
     return render(request, 'inventory/product_confirm_delete.html', {'object': product})
 
@@ -194,15 +200,17 @@ def supplier_edit(request, pk):
     })
 
 
-@admin_required  # Only Admin role can delete suppliers (not Inventory Manager)
+@admin_required
 def supplier_delete(request, pk):
-    """
-    Delete supplier. Most restrictive access - Admin only.
-    Inventory Manager is blocked from this operation.
-    """
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == 'POST':
-        supplier.delete()
-        messages.success(request, 'Supplier deleted.')
+        try:
+            supplier.delete()
+            messages.success(request, 'Supplier deleted.')
+        except ProtectedError:
+            messages.error(
+                request,
+                'This supplier cannot be deleted because one or more of their products are referenced by existing order history.'
+            )
         return redirect('supplier_index')
     return render(request, 'inventory/supplier_confirm_delete.html', {'object': supplier})
