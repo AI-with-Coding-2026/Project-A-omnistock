@@ -3,7 +3,11 @@ from collections import defaultdict
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import F
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import get_template
+
+from xhtml2pdf import pisa
 
 from core.utils import admin_required, staff_or_admin_required
 from inventory.models import Product
@@ -222,3 +226,21 @@ def invoice_view(request, pk):
     return render(request, 'orders/invoice.html', {
         'order': order,
     })
+
+def render_html_to_pdf(html):
+    response = HttpResponse(content_type='application/pdf')
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    if pisa_status.err:
+        return None
+    return response 
+
+@staff_or_admin_required
+def invoice_pdf(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+    template = get_template('orders/invoice_pdf.html')
+    html = template.render({'order': order})
+    pdf_response = render_html_to_pdf(html)
+    if pdf_response is None:
+        return HttpResponse('Error generating PDF', status=500)
+    pdf_response['Content-Disposition'] = f'attachment; filename="invoice_{order.order_number}.pdf"'
+    return pdf_response
