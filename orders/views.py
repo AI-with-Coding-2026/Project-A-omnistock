@@ -17,13 +17,38 @@ ORDER_CANCEL_REDIRECT = 'order_list'
 
 @staff_or_admin_required
 def order_list(request):
-    orders = Order.objects.select_related('user').all()
-
+    orders = Order.objects.select_related('user').prefetch_related('items__product').all()
     return render(request, 'orders/order_list.html', {
         'orders': orders,
         'is_admin': request.user.role == 'ADMIN',
     })
 
+
+@staff_or_admin_required
+def order_index(request):
+    status = request.GET.get('status')
+    customer = request.GET.get('customer')
+    orders = Order.objects.select_related('user').order_by('-created_at')
+    if status:
+        orders = orders.filter(status=status)
+    if customer:
+        orders = orders.filter(customer_name__icontains=customer)
+    return render(request, 'orders/order_index.html', {
+        'orders': orders,
+        'status_choices': Order.STATUS_CHOICES,
+        'status': status,
+        'customer': customer,
+    })
+
+@staff_or_admin_required
+def order_detail(request, order_id):
+    order = get_object_or_404(
+    Order.objects.prefetch_related('items__product'),
+    pk=order_id,
+    )
+    return render(request, 'orders/order_detail.html', {
+        'order': order
+    })
 
 @staff_or_admin_required
 @transaction.atomic

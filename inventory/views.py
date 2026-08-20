@@ -1,7 +1,11 @@
+from django.db.models import ProtectedError, Q
 from django.contrib import messages
 from django.db import IntegrityError
 from django.db.models import F, BooleanField, Case, When, Value
 from django.shortcuts import get_object_or_404, redirect, render
+
+from django.urls import reverse
+from django.core.paginator import Paginator
 
 from core.utils import (
     admin_or_inventory_manager_required,
@@ -34,6 +38,51 @@ def product_list(request):
         'is_admin': request.user.role == 'ADMIN',
     })
 
+@staff_or_admin_required
+def product_index(request):
+    q = request.GET.get('q', '')
+    supplier_id = request.GET.get('supplier')
+    min_price = request.GET.get('min_price')
+    max_price = request.GET.get('max_price')
+    products = Product.objects.select_related('supplier').all()
+    if q:
+        products = products.filter(
+            Q(name__icontains=q) | Q(sku__icontains=q))
+    if supplier_id:
+        products = products.filter(supplier_id=supplier_id)
+    if min_price:
+        try:
+            products = products.filter(unit_price__gte=float(min_price))
+        except ValueError:
+            messages.error(request, 'Min price must be a number.')
+            min_price = ''
+    if max_price:
+        try:
+            products = products.filter(unit_price__lte=float(max_price))
+        except ValueError:
+            messages.error(request, 'Max price must be a number.')
+            max_price = ''
+    suppliers = Supplier.objects.all()
+
+    paginator = Paginator(products, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    querystring = request.GET.copy()
+    querystring.pop('page', None)
+    querystring = querystring.urlencode()
+
+    return render(request, 'inventory/product_index.html', {
+        'products': page_obj,
+        'page_obj': page_obj,
+        'q': q,
+        'suppliers': suppliers,
+        'selected_supplier': supplier_id,
+        'min_price': min_price,
+        'max_price': max_price,
+        'querystring': querystring,
+    })
+
 @admin_required
 def product_create(request):
     form = ProductForm(request.POST or None)
@@ -60,13 +109,18 @@ def product_update(request, pk):
         'title': 'Update Product',
     })
 
-
 @admin_required
 def product_delete(request, pk):
     product = get_object_or_404(Product, pk=pk)
     if request.method == 'POST':
-        product.delete()
-        messages.success(request, 'Product deleted.')
+        try:
+            product.delete()
+            messages.success(request, 'Product deleted.')
+        except ProtectedError:
+            messages.error(
+                request,
+                'This product cannot be deleted because it is referenced by existing order history.'
+            )
         return redirect('product_list')
     return render(request, 'inventory/product_confirm_delete.html', {'object': product})
 
@@ -146,15 +200,17 @@ def supplier_edit(request, pk):
     })
 
 
-@admin_required  # Only Admin role can delete suppliers (not Inventory Manager)
+@admin_required
 def supplier_delete(request, pk):
-    """
-    Delete supplier. Most restrictive access - Admin only.
-    Inventory Manager is blocked from this operation.
-    """
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == 'POST':
-        supplier.delete()
-        messages.success(request, 'Supplier deleted.')
+        try:
+            supplier.delete()
+            messages.success(request, 'Supplier deleted.')
+        except ProtectedError:
+            messages.error(
+                request,
+                'This supplier cannot be deleted because one or more of their products are referenced by existing order history.'
+            )
         return redirect('supplier_index')
     return render(request, 'inventory/supplier_confirm_delete.html', {'object': supplier})

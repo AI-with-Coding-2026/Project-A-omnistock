@@ -50,7 +50,6 @@ class OrderCreateStockTests(TestCase):
                 'items[][quantity]': [str(quantity) for quantity in quantities],
             },
         )
-     
 
     def test_successful_stock_deduction(self):
         response = self.create_order([self.product_a], [10])
@@ -69,7 +68,6 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(item.quantity, 10)
         self.assertEqual(item.unit_price, Decimal('100.00'))
 
-
     def test_insufficient_stock_creates_no_order_or_stock_change(self):
         response = self.create_order([self.product_a], [100])
 
@@ -80,7 +78,6 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-
 
     def test_multiple_products_deduct_stock_correctly(self):
         response = self.create_order(
@@ -101,8 +98,6 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(order.total_amount, Decimal('2252.50'))
         self.assertEqual(OrderItem.objects.filter(order=order).count(), 2)
 
-
-
     def test_duplicate_product_rows_combined_quantity_exceeds_stock(self):
         response = self.create_order(
             [self.product_a, self.product_a],
@@ -117,8 +112,6 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-
-  
 
     def test_duplicate_product_rows_combined_quantity_within_stock_succeeds(self):
         response = self.create_order(
@@ -142,7 +135,6 @@ class OrderCreateStockTests(TestCase):
             product=self.product_a,
         )
 
-        
         self.assertEqual(items.count(), 2)
 
         quantities = list(
@@ -153,7 +145,6 @@ class OrderCreateStockTests(TestCase):
         )
 
         self.assertEqual(quantities, [10, 15])
-
 
     def test_duplicate_product_overflow_rolls_back_entire_order(self):
         response = self.create_order(
@@ -172,8 +163,6 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(self.product_a.stock_quantity, 50)
         self.assertEqual(self.product_b.stock_quantity, 30)
 
-
-
     def test_zero_quantity_is_rejected(self):
         response = self.create_order([self.product_a], [0])
 
@@ -184,7 +173,6 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(self.product_a.stock_quantity, 50)
 
-
     def test_negative_quantity_is_rejected(self):
         response = self.create_order([self.product_a], [-5])
 
@@ -194,7 +182,6 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-
 
     def test_non_numeric_quantity_is_rejected(self):
         response = self.client.post(
@@ -212,7 +199,6 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-
 
     def test_no_line_items_are_rejected(self):
         response = self.client.post(
@@ -522,3 +508,236 @@ class OrderCancellationTests(TestCase):
 
         self.assertEqual(order.status, Order.STATUS_CANCELLED)
         self.assertEqual(self.product.stock_quantity, 10)
+
+
+class OrderDetailTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='detail_user',
+            password='testpass123',
+            role=User.ROLE_STAFF,
+        )
+        self.supplier = Supplier.objects.create(
+            name='Detail Supplier',
+            email='detail@example.com',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='Detail Product',
+            unit_price=Decimal('25.00'),
+            stock_quantity=10,
+        )
+        self.order = Order.objects.create(
+            user=self.user,
+            customer_name='Detail Customer',
+            total_amount=Decimal('50.00'),
+            status=Order.STATUS_COMPLETED,
+        )
+        OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal('25.00'),
+        )
+
+    def test_staff_can_view_order_detail_with_line_items(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.order.order_number)
+        self.assertContains(response, 'Detail Customer')
+        self.assertContains(response, 'Detail Product')
+        self.assertContains(response, '25.00')
+
+    def test_cancelled_order_displays_red_status_badge(self):
+        self.order.status = Order.STATUS_CANCELLED
+        self.order.save()
+
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Cancelled')
+        self.assertContains(response, 'bg-red-100')
+
+    def test_completed_order_displays_green_status_badge(self):
+        self.order.status = Order.STATUS_COMPLETED
+        self.order.save()
+
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Completed')
+        self.assertContains(response, 'bg-green-100')
+
+    def test_order_detail_displays_multiple_line_items(self):
+        second_product = Product.objects.create(
+            supplier=self.supplier,
+            name='Second Detail Product',
+            unit_price=Decimal('15.00'),
+            stock_quantity=20,
+        )
+        OrderItem.objects.create(
+            order=self.order,
+            product=second_product,
+            quantity=3,
+            unit_price=Decimal('15.00'),
+        )
+
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.product.name)
+        self.assertContains(response, second_product.name)
+        self.assertContains(response, '2')
+        self.assertContains(response, '3')
+
+    def test_order_detail_shows_empty_state_when_no_items_exist(self):
+        empty_order = Order.objects.create(
+            user=self.user,
+            customer_name='No Items Customer',
+            total_amount=Decimal('0.00'),
+            status=Order.STATUS_PENDING,
+        )
+
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[empty_order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'No line items found for this order.',
+        )
+
+    def test_order_detail_returns_404_for_missing_order(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', args=[99999])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_user_without_an_allowed_role_is_redirected(self):
+        unauthorized_user = User.objects.create_user(
+            username='unauthorized_user',
+            password='testpass123',
+            role=User.ROLE_CUSTOMER,
+        )
+        self.client.force_login(unauthorized_user)
+
+        detail_url = reverse('order_detail', args=[self.order.pk])
+        response = self.client.get(detail_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f'{reverse("login")}?next={detail_url}',
+        )
+
+
+class OrderIndexTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='index_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.sales_rep = User.objects.create_user(
+            username='index_sales_rep',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        self.customer = User.objects.create_user(
+            username='index_customer',
+            password='password123',
+            role=User.ROLE_CUSTOMER,
+        )
+        self.order = Order.objects.create(
+            user=self.admin,
+            customer_name='Index Customer',
+            total_amount=Decimal('99.99'),
+            status=Order.STATUS_PENDING,
+        )
+
+    def test_staff_can_view_order_index_with_order_details(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(reverse('order_index'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'orders/order_index.html')
+        self.assertContains(response, self.order.order_number)
+        self.assertContains(response, self.order.customer_name)
+        self.assertContains(response, self.order.user.username)
+        self.assertContains(response, str(self.order.total_amount))
+        self.assertContains(response, self.order.created_at.strftime('%Y-%m-%d'))
+        self.assertContains(response, self.order.get_status_display())
+        self.assertContains(response, f'badge badge-{self.order.status}')
+
+    def test_admin_can_view_order_index(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('order_index'))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_customer_is_redirected_to_login(self):
+        self.client.force_login(self.customer)
+
+        order_index_url = reverse('order_index')
+        response = self.client.get(order_index_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f'{reverse("login")}?next={order_index_url}',
+        )
+
+    def test_filter_by_status(self):
+        completed = Order.objects.create(
+            user=self.admin,
+            customer_name='Completed Customer',
+            total_amount=Decimal('50.00'),
+            status=Order.STATUS_COMPLETED,
+        )
+
+        self.client.force_login(self.sales_rep)
+        response = self.client.get(reverse('order_index'), {'status': Order.STATUS_PENDING})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.order.order_number)
+        self.assertNotContains(response, completed.order_number)
+
+    def test_filter_by_customer_name(self):
+        other = Order.objects.create(
+            user=self.admin,
+            customer_name='Other Customer',
+            total_amount=Decimal('50.00'),
+            status=Order.STATUS_PENDING,
+        )
+
+        self.client.force_login(self.sales_rep)
+        response = self.client.get(reverse('order_index'), {'customer': 'Index'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.order.order_number)
+        self.assertNotContains(response, other.order_number)
