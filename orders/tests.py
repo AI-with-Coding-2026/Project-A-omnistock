@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.test import Client,TestCase
 from django.urls import reverse
 
@@ -670,65 +671,103 @@ class OrderDetailTests(TestCase):
 
 class OrderCompleteViewTests(TestCase):
 
-  def setUp(self):
-    self.client = Client()
+    def setUp(self):
+        self.client = Client()
 
-    # Create users with different roles for permission testing
-    self.admin_user = User.objects.create_superuser(
-        username='admin',
-        email='admin@test.com',
-        password='password123',
-        role='ADMIN',
-    )
-    self.regular_user = User.objects.create_user(
-        username='customer',
-        email='customer@test.com',
-        password='password123',
-        role='CUSTOMER', 
-        is_staff=False
-    )
+        # Clean role constants setup
+        self.admin_user = User.objects.create_superuser(
+            username='admin_complete_test',
+            email='admin_complete@test.com',
+            password='password123',
+            role=getattr(User, 'ROLE_ADMIN', 'ADMIN'),
+        )
+        self.customer_user = User.objects.create_user(
+            username='customer_complete_test',
+            email='customer_complete@test.com',
+            password='password123',
+            role=getattr(User, 'ROLE_CUSTOMER', 'CUSTOMER'),
+            is_staff=False,
+        )
 
-    # Create a pending test order
-    self.order = Order.objects.create(
-        user=self.admin_user,
-        customer_name='Test Customer',
-        status=Order.STATUS_PENDING,
-        total_amount=100.00,
-    )
-    self.complete_url = reverse(
-        'order_complete', kwargs={'order_id': self.order.id}
-    )
+        # Setup order with Decimal total
+        self.order = Order.objects.create(
+            user=self.admin_user,
+            customer_name='Test Customer',
+            status=Order.STATUS_PENDING,
+            total_amount=Decimal('100.00'),
+        )
+        self.complete_url = reverse(
+            'order_complete', kwargs={'order_id': self.order.id}
+        )
+        self.detail_url = reverse(
+            'order_detail', kwargs={'order_id': self.order.id}
+        )
 
-  def test_complete_order_success(self):
-    """Test marking a pending order as completed successfully."""
-    self.client.login(username='admin', password='password123')
-    response = self.client.post(self.complete_url)
+    def test_complete_order_success(self):
+        """Test marking a pending order as completed successfully."""
+        self.client.login(username='admin_complete_test', password='password123')
+        response = self.client.post(self.complete_url)
 
-    # Refresh order from the database to check updated status
-    self.order.refresh_from_db()
-    self.assertEqual(self.order.status, Order.STATUS_COMPLETED)
-    self.assertRedirects(
-        response, reverse('order_detail', kwargs={'order_id': self.order.id})
-    )
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.STATUS_COMPLETED)
+        self.assertRedirects(response, self.detail_url)
+
+    def test_cannot_complete_non_pending_order(self):
+        """Test that non-pending orders are rejected, redirected, and display a warning."""
+        self.client.login(username='admin_complete_test', password='password123')
+        self.order.status = Order.STATUS_CANCELLED
+        self.order.save()
+
+        response = self.client.post(self.complete_url)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.STATUS_CANCELLED)
+        self.assertRedirects(response, self.detail_url)
+
+        # Assert warning message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(
+            any(
+                'Order cannot be marked as completed.' in m.message
+                for m in messages
+            )
+        )
+
+    def test_unauthorized_user_cannot_complete_order(self):
+        """Test unauthorized users receive 403 or redirect and cannot complete order."""
+        self.client.login(username='customer_complete_test', password='password123')
+        response = self.client.post(self.complete_url)
+
+        self.assertIn(response.status_code, [302, 403])
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.STATUS_PENDING)
+
+    def test_get_request_returns_405_method_not_allowed(self):
+        """Test that GET requests to order_complete are rejected by @require_POST."""
+        self.client.login(username='admin_complete_test', password='password123')
+        response = self.client.get(self.complete_url)
+        self.assertEqual(response.status_code, 405)
+
+    def test_mark_completed_button_visibility_on_detail_page(self):
+        """Test that 'Mark Completed' button only appears when order status is pending."""
+        self.client.login(username='admin_complete_test', password='password123')
+
+        # 1. Pending status: button should be present
+        response = self.client.get(self.detail_url)
+        self.assertContains(response, 'Mark Completed')
+
+        # 2. Completed status: button should NOT be present
+        self.order.status = Order.STATUS_COMPLETED
+        self.order.save()
+        response = self.client.get(self.detail_url)
+        self.assertNotContains(response, 'Mark Completed')
+
+        # 3. Cancelled status: button should NOT be present
+        self.order.status = Order.STATUS_CANCELLED
+        self.order.save()
+        response = self.client.get(self.detail_url)
+        self.assertNotContains(response, 'Mark Completed')
 
 
-  def test_cannot_complete_non_pending_order(self):
-    """Test that already cancelled or completed orders cannot be marked as completed."""
-    self.client.login(username='admin', password='password123')
-    self.order.status = Order.STATUS_CANCELLED
-    self.order.save()
-
-    response = self.client.post(self.complete_url)
-    self.order.refresh_from_db()
-    self.assertEqual(self.order.status, Order.STATUS_CANCELLED)
-
-  def test_unauthorized_user_cannot_complete_order(self):
-    """Test that regular users without staff/admin privileges cannot complete orders."""
-    self.client.login(username='customer', password='password123')
-    response = self.client.post(self.complete_url)
-
-    self.order.refresh_from_db()
-    self.assertEqual(self.order.status, Order.STATUS_PENDING)
 class OrderIndexTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
