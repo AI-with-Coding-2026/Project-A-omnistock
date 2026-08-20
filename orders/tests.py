@@ -50,7 +50,6 @@ class OrderCreateStockTests(TestCase):
                 'items[][quantity]': [str(quantity) for quantity in quantities],
             },
         )
-     
 
     def test_successful_stock_deduction(self):
         response = self.create_order([self.product_a], [10])
@@ -69,7 +68,6 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(item.quantity, 10)
         self.assertEqual(item.unit_price, Decimal('100.00'))
 
-
     def test_insufficient_stock_creates_no_order_or_stock_change(self):
         response = self.create_order([self.product_a], [100])
 
@@ -80,7 +78,6 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-
 
     def test_multiple_products_deduct_stock_correctly(self):
         response = self.create_order(
@@ -101,8 +98,6 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(order.total_amount, Decimal('2252.50'))
         self.assertEqual(OrderItem.objects.filter(order=order).count(), 2)
 
-
-
     def test_duplicate_product_rows_combined_quantity_exceeds_stock(self):
         response = self.create_order(
             [self.product_a, self.product_a],
@@ -117,8 +112,6 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-
-  
 
     def test_duplicate_product_rows_combined_quantity_within_stock_succeeds(self):
         response = self.create_order(
@@ -142,7 +135,6 @@ class OrderCreateStockTests(TestCase):
             product=self.product_a,
         )
 
-        
         self.assertEqual(items.count(), 2)
 
         quantities = list(
@@ -153,7 +145,6 @@ class OrderCreateStockTests(TestCase):
         )
 
         self.assertEqual(quantities, [10, 15])
-
 
     def test_duplicate_product_overflow_rolls_back_entire_order(self):
         response = self.create_order(
@@ -172,8 +163,6 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(self.product_a.stock_quantity, 50)
         self.assertEqual(self.product_b.stock_quantity, 30)
 
-
-
     def test_zero_quantity_is_rejected(self):
         response = self.create_order([self.product_a], [0])
 
@@ -184,7 +173,6 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(self.product_a.stock_quantity, 50)
 
-
     def test_negative_quantity_is_rejected(self):
         response = self.create_order([self.product_a], [-5])
 
@@ -194,7 +182,6 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-
 
     def test_non_numeric_quantity_is_rejected(self):
         response = self.client.post(
@@ -212,7 +199,6 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-
 
     def test_no_line_items_are_rejected(self):
         response = self.client.post(
@@ -447,6 +433,21 @@ class OrderCancellationTests(TestCase):
         )
         return order
 
+    def create_pending_order(self):
+        order = Order.objects.create(
+            user=self.admin,
+            customer_name='Pending Customer',
+            status=Order.STATUS_PENDING,
+            total_amount=Decimal('100.00'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal('50.00'),
+        )
+        return order
+
     def test_admin_cancellation_restores_stock_and_updates_status(self):
         order = self.create_completed_order()
         self.client.force_login(self.admin)
@@ -492,19 +493,8 @@ class OrderCancellationTests(TestCase):
         self.assertEqual(order.status, Order.STATUS_COMPLETED)
         self.assertEqual(self.product.stock_quantity, 8)
 
-    def test_pending_order_cannot_be_cancelled_or_restore_stock(self):
-        order = Order.objects.create(
-            user=self.admin,
-            customer_name='Pending Customer',
-            status=Order.STATUS_PENDING,
-            total_amount=Decimal('100.00'),
-        )
-        OrderItem.objects.create(
-            order=order,
-            product=self.product,
-            quantity=2,
-            unit_price=Decimal('50.00'),
-        )
+    def test_pending_order_can_be_cancelled_and_restore_stock(self):
+        order = self.create_pending_order()
         self.client.force_login(self.admin)
 
         response = self.client.post(
@@ -516,8 +506,9 @@ class OrderCancellationTests(TestCase):
         order.refresh_from_db()
         self.product.refresh_from_db()
 
-        self.assertEqual(order.status, Order.STATUS_PENDING)
-        self.assertEqual(self.product.stock_quantity, 8)
+        self.assertEqual(order.status, Order.STATUS_CANCELLED)
+        self.assertEqual(self.product.stock_quantity, 10)
+
 
 class OrderDetailTests(TestCase):
     def setUp(self):
@@ -562,7 +553,6 @@ class OrderDetailTests(TestCase):
         self.assertContains(response, 'Detail Product')
         self.assertContains(response, '25.00')
 
-
     def test_cancelled_order_displays_red_status_badge(self):
         self.order.status = Order.STATUS_CANCELLED
         self.order.save()
@@ -591,7 +581,6 @@ class OrderDetailTests(TestCase):
         self.assertContains(response, 'Completed')
         self.assertContains(response, 'bg-green-100')
 
-
     def test_order_detail_displays_multiple_line_items(self):
         second_product = Product.objects.create(
             supplier=self.supplier,
@@ -618,7 +607,6 @@ class OrderDetailTests(TestCase):
         self.assertContains(response, '2')
         self.assertContains(response, '3')
 
-
     def test_order_detail_shows_empty_state_when_no_items_exist(self):
         empty_order = Order.objects.create(
             user=self.user,
@@ -639,7 +627,6 @@ class OrderDetailTests(TestCase):
             'No line items found for this order.',
         )
 
-
     def test_order_detail_returns_404_for_missing_order(self):
         self.client.force_login(self.user)
 
@@ -648,7 +635,6 @@ class OrderDetailTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
-
 
     def test_user_without_an_allowed_role_is_redirected(self):
         unauthorized_user = User.objects.create_user(
