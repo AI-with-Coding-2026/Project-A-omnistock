@@ -1,0 +1,196 @@
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    @page {
+        size: A4;
+        margin: 2cm;
+    }
+    body {
+        font-family: Helvetica, Arial, sans-serif;
+        color: #1f2937;
+        font-size: 11pt;
+    }
+    .header-table {
+        width: 100%;
+        background-color: #0f172a;
+        color: #ffffff;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    .header-table td {
+        padding: 4px 8px;
+        vertical-align: top;
+    }
+    .company-name {
+        font-size: 16pt;
+        font-weight: bold;
+        color: #ffffff;
+    }
+    .company-subtitle {
+        font-size: 9pt;
+        color: #cbd5e1;
+    }
+    .invoice-label {
+        font-size: 8pt;
+        text-transform: uppercase;
+        color: #94a3b8;
+        text-align: right;
+    }
+    .invoice-number {
+        font-weight: bold;
+        text-align: right;
+        color: #ffffff;
+    }
+    .meta-table {
+        width: 100%;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 12px;
+    }
+    .meta-table td {
+        vertical-align: top;
+        padding: 4px 8px;
+    }
+    .meta-label {
+        font-size: 8pt;
+        text-transform: uppercase;
+        color: #9ca3af;
+    }
+    .meta-value {
+        font-weight: bold;
+        color: #111827;
+        margin-top: 2px;
+    }
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+    .items-table th {
+        text-align: left;
+        font-size: 9pt;
+        color: #6b7280;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 6px 8px;
+    }
+    .items-table th.center { text-align: center; }
+    .items-table th.right { text-align: right; }
+    .items-table td {
+        padding: 10px 8px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 10pt;
+    }
+    .items-table td.center { text-align: center; color: #4b5563; }
+    .items-table td.right { text-align: right; font-weight: bold; }
+    .total-table {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    .total-table td {
+        padding: 10px 8px;
+        border-top: 1px solid #e5e7eb;
+    }
+    .total-label {
+        font-size: 10pt;
+        color: #6b7280;
+    }
+    .total-value {
+        font-size: 16pt;
+        font-weight: bold;
+        text-align: right;
+        color: #111827;
+    }
+    .status-table {
+        width: 100%;
+        background-color: #f9fafb;
+        padding: 10px;
+    }
+    .status-table td {
+        padding: 6px 8px;
+    }
+    .status-label {
+        font-size: 10pt;
+        color: #6b7280;
+    }
+    .status-badge {
+        text-align: right;
+        font-size: 9pt;
+        font-weight: bold;
+    }
+    .status-completed { color: #15803d; }
+    .status-cancelled { color: #b91c1c; }
+    .status-pending { color: #374151; }
+</style>
+</head>
+<body>
+
+    <table class="header-table">
+        <tr>
+            <td>
+                <div class="company-name">OmniStock</div>
+                <div class="company-subtitle">Inventory Management System</div>
+            </td>
+            <td style="width: 40%;">
+                <div class="invoice-label">Invoice</div>
+                <div class="invoice-number">{{ order.order_number }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="meta-table">
+        <tr>
+            <td style="width: 50%;">
+                <div class="meta-label">Customer</div>
+                <div class="meta-value">{{ order.customer_name }}</div>
+            </td>
+            <td style="width: 50%; text-align: right;">
+                <div class="meta-label">Date</div>
+                <div class="meta-value">{{ order.created_at|date:"M d, Y H:i" }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th class="center">Quantity</th>
+                <th class="right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in order.items.all %}
+            <tr>
+                <td>{{ item.product }}</td>
+                <td class="center">{{ item.quantity }}</td>
+                <td class="right">${{ item.line_total }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="total-table">
+        <tr>
+            <td class="total-label" style="width: 70%;">Total</td>
+            <td class="total-value">${{ order.total_amount }}</td>
+        </tr>
+    </table>
+
+    <table class="status-table">
+        <tr>
+            <td class="status-label">Order Status</td>
+            <td class="status-badge">
+                {% if order.status == 'completed' %}
+                    <span class="status-completed">Completed</span>
+                {% elif order.status == 'cancelled' %}
+                    <span class="status-cancelled">Cancelled</span>
+                {% else %}
+                    <span class="status-pending">{{ order.get_status_display }}</span>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>
