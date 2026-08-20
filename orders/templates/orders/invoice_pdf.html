@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Invoice #{{ order.invoice.invoice_number|default:order.pk }} - OmniStock</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 12mm 12mm 14mm 12mm;
+        }
+
+        /* stylelint-disable-next-line at-rule-no-unknown */
+        @frame footer_frame {
+            -pdf-frame-content: footer_content;
+            left: 12mm;
+            width: 192mm;
+            top: 261mm;
+            height: 10mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #1e2530;
+            margin: 0;
+            padding: 8mm 0 0 0;
+        }
+
+        .invoice-wrap {
+            max-width: 780px;
+            margin: 0 auto;
+        }
+
+        .banner-table {
+            width: 100%;
+            background-color: #12182b;
+            color: #ffffff;
+            margin-bottom: 14px;
+            border-collapse: collapse;
+        }
+
+        .banner-cell-left {
+            padding: 14px 18px;
+            vertical-align: middle;
+            width: 60%;
+        }
+
+        .banner-cell-right {
+            padding: 14px 18px;
+            vertical-align: middle;
+            text-align: right;
+            width: 40%;
+        }
+
+        .brand-name {
+            font-size: 17px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .brand-subtext {
+            font-size: 8px;
+            color: #8b93b0;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }
+
+        .doc-type {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .doc-ref {
+            font-size: 10px;
+            color: #aab1cc;
+            margin-top: 5px;
+        }
+
+        .doc-ref strong {
+            color: #e2e5f5;
+        }
+
+        .info-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 14px;
+        }
+
+        .info-card {
+            background-color: #f7f8fc;
+            border: 1px solid #e7e9f3;
+            padding: 10px 12px;
+            vertical-align: top;
+        }
+
+        .info-card-spacer {
+            width: 10px;
+        }
+
+        .card-label {
+            font-size: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #6b7290;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e7e9f3;
+        }
+
+        .card-value-primary {
+            font-size: 12px;
+            font-weight: bold;
+            color: #12182b;
+            margin-bottom: 3px;
+        }
+
+        .card-value-secondary {
+            font-size: 9px;
+            color: #565d78;
+            line-height: 1.5;
+        }
+
+        .card-value-secondary strong {
+            color: #3a4160;
+        }
+
+        .status-completed {
+            color: #0f8a4c;
+            font-weight: bold;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .status-cancelled {
+            color: #c81e3a;
+            font-weight: bold;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            color: #b6790a;
+            font-weight: bold;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+
+        .items-table th {
+            background-color: #12182b;
+            color: #ffffff;
+            font-size: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 8px 10px;
+            border: none;
+        }
+
+        .items-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #edeef5;
+            font-size: 10px;
+            color: #3a4160;
+            vertical-align: middle;
+        }
+
+        .items-table tr.even td {
+            background-color: #f7f8fc;
+        }
+
+        .items-table tr.last-row td {
+            border-bottom: 2px solid #12182b;
+        }
+
+        .product-title {
+            font-weight: bold;
+            color: #12182b;
+            font-size: 10px;
+        }
+
+        .product-sku {
+            font-size: 8px;
+            color: #8b93b0;
+            margin-top: 2px;
+        }
+
+        .bottom-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+
+        .notes-cell {
+            vertical-align: top;
+            width: 50%;
+            padding-right: 12px;
+        }
+
+        .notes-box {
+            background-color: #f7f8fc;
+            border: 1px solid #e7e9f3;
+            padding: 10px 12px;
+        }
+
+        .notes-title {
+            font-size: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #565d78;
+            margin-bottom: 5px;
+        }
+
+        .notes-body {
+            font-size: 9px;
+            color: #6b7290;
+            line-height: 1.5;
+        }
+
+        .totals-cell {
+            vertical-align: top;
+            width: 50%;
+        }
+
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #e7e9f3;
+        }
+
+        .totals-row td {
+            padding: 7px 10px;
+            font-size: 10px;
+            color: #565d78;
+            border-bottom: 1px solid #f0f1f7;
+        }
+
+        .grand-total-row td {
+            padding: 10px 12px;
+            background-color: #12182b;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        #pdfFooter {
+            border-top: 1px solid #e7e9f3;
+            padding-top: 6px;
+            font-size: 8px;
+            color: #a3a9c2;
+        }
+
+        .footer-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .footer-left {
+            text-align: left;
+            width: 60%;
+        }
+
+        .footer-right {
+            text-align: right;
+            width: 40%;
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-wrap">
+        <table class="banner-table" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="banner-cell-left">
+                    <span class="brand-name">OmniStock</span>
+                    <div class="brand-subtext">Enterprise Inventory &amp; Order Management</div>
+                </td>
+                <td class="banner-cell-right">
+                    <div class="doc-type">Invoice</div>
+                    <div class="doc-ref">
+                        {% if order.invoice %}
+                            <strong>Invoice #:</strong> {{ order.invoice.invoice_number }}<br>
+                        {% else %}
+                            <strong>Invoice #:</strong> {{ order.pk }}<br>
+                        {% endif %}
+                        <strong>Order Ref:</strong> {{ order.order_number }}
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <table class="info-grid" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="info-card">
+                    <div class="card-label">Billed To</div>
+                    <div class="card-value-primary">{{ order.customer_name }}</div>
+                    <div class="card-value-secondary">Customer Account<br>Verified Customer</div>
+                </td>
+                <td class="info-card-spacer"></td>
+                <td class="info-card">
+                    <div class="card-label">Order Details</div>
+                    <div class="card-value-primary">{{ order.order_number }}</div>
+                    <div class="card-value-secondary">
+                        <strong>Created:</strong> {{ order.created_at|date:"M d, Y H:i" }}<br>
+                        <strong>Processed by:</strong> {{ order.user.username|default:"System Admin" }}
+                    </div>
+                </td>
+                <td class="info-card-spacer"></td>
+                <td class="info-card">
+                    <div class="card-label">Payment &amp; Status</div>
+                    <div>
+                        {% if order.status == 'completed' or order.status == 'COMPLETED' %}
+                            <span class="status-completed">Completed</span>
+                        {% elif order.status == 'cancelled' or order.status == 'CANCELLED' %}
+                            <span class="status-cancelled">Cancelled</span>
+                        {% else %}
+                            <span class="status-pending">{{ order.get_status_display|default:order.status }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-value-secondary" style="margin-top: 4px;">
+                        <strong>Issue Date:</strong> {{ order.created_at|date:"F d, Y" }}<br>
+                        <strong>Terms:</strong> Due upon receipt
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <table class="items-table" cellpadding="0" cellspacing="0">
+            <thead>
+                <tr>
+                    <th style="text-align: center; width: 6%;">#</th>
+                    <th style="text-align: left; width: 44%;">Item Description</th>
+                    <th style="text-align: center; width: 14%;">Quantity</th>
+                    <th style="text-align: right; width: 18%;">Unit Price</th>
+                    <th style="text-align: right; width: 18%;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items.all %}
+                <tr class="{% cycle 'odd' 'even' %}{% if forloop.last %} last-row{% endif %}">
+                    <td style="text-align: center; color: #8b93b0; font-size: 9px;">{{ forloop.counter }}</td>
+                    <td style="text-align: left;">
+                        <div class="product-title">{{ item.product.name }}</div>
+                        {% if item.product.sku %}
+                        <div class="product-sku">SKU: {{ item.product.sku }}{% if item.product.supplier %} &bull; Supplier: {{ item.product.supplier.name }}{% endif %}</div>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center; font-weight: bold; color: #12182b;">{{ item.quantity }}</td>
+                    <td style="text-align: right; color: #565d78;">${{ item.unit_price }}</td>
+                    <td style="text-align: right; font-weight: bold; color: #12182b;">${{ item.line_total }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: #8b93b0; padding: 20px;">
+                        No line items found for this order.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table class="bottom-table" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="notes-cell">
+                    <div class="notes-box">
+                        <div class="notes-title">Payment Instructions &amp; Notes</div>
+                        <div class="notes-body">
+                            Please include the order reference number <strong>{{ order.order_number }}</strong> with your remittance.<br><br>
+                            Thank you for your business with OmniStock!
+                        </div>
+                    </div>
+                </td>
+                <td class="totals-cell">
+                    <table class="totals-table" cellpadding="0" cellspacing="0">
+                        <tr class="totals-row">
+                            <td style="width: 55%; color: #6b7290;">Subtotal:</td>
+                            <td style="text-align: right; font-weight: bold; color: #12182b;">${{ order.total_amount }}</td>
+                        </tr>
+                        <tr class="totals-row">
+                            <td style="color: #6b7290;">Tax (0%):</td>
+                            <td style="text-align: right; color: #565d78;">$0.00</td>
+                        </tr>
+                        <tr class="grand-total-row">
+                            <td>Total Due:</td>
+                            <td style="text-align: right; font-size: 13px;">${{ order.total_amount }}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <div id="pdfFooter">
+            <table class="footer-table" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="footer-left">
+                        OmniStock Inventory &amp; Order Processing System &bull; Confidential
+                    </td>
+                    <td class="footer-right">
+                        Generated: {{ order.created_at|date:"M d, Y" }}
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

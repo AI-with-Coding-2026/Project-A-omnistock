@@ -20,6 +20,7 @@ staticfiles/
 # IDEs
 .vscode/
 .idea/
+.cursor/
 .claude/
 
 # OS
@@ -33,6 +34,4 @@ supplier-management-rostel-summary.md
 supplier-management-create-edit.md
 fix_migrations.md
 hello.bat
-
-# Team workflow documentation (not tracked)
 GIT_WORKFLOW.md
