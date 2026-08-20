@@ -4,10 +4,58 @@
 
 {% block content %}
     <h1>{{ title }}</h1>
-    <form method="post">
+    <form method="post" id="order-form">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">Save</button>
+        
+        <p id="stock-error" style="color: red; display: none; margin-top: 5px;"></p>
+
+        <button type="submit" id="submit-btn">Save</button>
     </form>
     <p><a href="{% url 'order_list' %}">Back to Orders</a></p>
+
+    <!-- Safely output the JSON string into an HTML script element -->
+    {{ stock_map_json|json_script:"stock-map-data" }}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. Safely parse JSON from the script element (clears JS syntax errors)
+            const stockMapContainer = document.getElementById('stock-map-data');
+            const stockMap = stockMapContainer ? JSON.parse(stockMapContainer.textContent) : {};
+
+            // 2. Select DOM elements
+            const productSelect = document.getElementById('id_product');
+            const quantityInput = document.getElementById('id_quantity');
+            const stockError = document.getElementById('stock-error');
+            const submitBtn = document.getElementById('submit-btn');
+
+            function validateStock() {
+                if (!productSelect || !quantityInput) return;
+
+                const productId = productSelect.value;
+                const requestedQty = parseInt(quantityInput.value, 10) || 0;
+
+                if (productId && (productId in stockMap)) {
+                    const availableStock = stockMap[productId];
+
+                    if (requestedQty > availableStock) {
+                        stockError.textContent = `Insufficient stock! Maximum available: ${availableStock}`;
+                        stockError.style.display = 'block';
+                        submitBtn.disabled = true;
+                    } else {
+                        stockError.style.display = 'none';
+                        submitBtn.disabled = false;
+                    }
+                } else {
+                    stockError.style.display = 'none';
+                    submitBtn.disabled = false;
+                }
+            }
+
+            if (productSelect && quantityInput) {
+                productSelect.addEventListener('change', validateStock);
+                quantityInput.addEventListener('input', validateStock);
+            }
+        });km
+    </script>
 {% endblock %}

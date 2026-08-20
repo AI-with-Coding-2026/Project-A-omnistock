@@ -1,9 +1,10 @@
-# orders/views.py
+import json
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.utils import admin_required, staff_or_admin_required
+from inventory.models import Product  # Adjust import path if needed
 
 from .forms import OrderForm
 from .models import Order
@@ -44,10 +45,12 @@ def order_create(request):
             
             messages.success(request, 'Order created and stock deducted.')
             return redirect('order_list')
+    stock_map = {p.pk: p.stock_quantity for p in Product.objects.all()}
             
     return render(request, 'orders/order_form.html', {
         'form': form,
         'title': 'Create Order',
+        'stock_map_json': json.dumps(stock_map),
     })
 
 
