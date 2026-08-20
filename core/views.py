@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.db.models import F, Sum
 
 from inventory.models import Product, Supplier
-from orders.models import Order
+from orders.models import Order, OrderItem  # <-- Added OrderItem here
 
 from .forms import StyledLoginForm
 from .models import User
@@ -47,6 +47,14 @@ def dashboard(request):
         total_revenue=Sum("total_amount")
     )["total_revenue"] or 0
 
+    # --- Task 3: Top 5 Selling Products ---
+    top_products = (
+        OrderItem.objects
+        .values('product__name')
+        .annotate(total_qty=Sum('quantity'))
+        .order_by('-total_qty')[:5]
+    )
+
     products = Product.objects.select_related('supplier').all()
     low_stock = Product.low_stock()
     is_admin = request.user.role == User.ROLE_ADMIN
@@ -59,6 +67,7 @@ def dashboard(request):
         "supplier_count": supplier_count,
         "low_stock_count": low_stock_count,
         "total_revenue": total_revenue,
+        'top_products': top_products,  # <-- Added to context
     }
 
     if request.user.role == User.ROLE_ADMIN:
