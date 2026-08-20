@@ -1,12 +1,7 @@
 from django.contrib import messages
-<<<<<<< HEAD
 from django.core.paginator import Paginator
 from django.db import IntegrityError
 from django.db.models import BooleanField, Case, Count, F, ProtectedError, Q, Value, When
-=======
-from django.db import IntegrityError
-from django.db.models import F, BooleanField, Case, When, Value, Count, Q
->>>>>>> origin/feature/s2-supplier-index
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -133,15 +128,11 @@ def product_delete(request, pk):
 
 @staff_or_admin_required
 def supplier_list(request):
-<<<<<<< HEAD
-    role = request.user.role
-=======
     """
     Supplier index page - read-only view accessible by all staff roles.
     Sales Rep can view but not create/edit (buttons hidden via can_manage_suppliers).
     Supports search by name/email and shows product count per supplier.
     """
->>>>>>> origin/feature/s2-supplier-index
     q = request.GET.get('q', '').strip()
     role = request.user.role
     suppliers = Supplier.objects.annotate(product_count=Count('products'))
@@ -207,7 +198,6 @@ def supplier_edit(request, pk):
 def supplier_delete(request, pk):
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == 'POST':
-<<<<<<< HEAD
         try:
             supplier.delete()
             messages.success(request, 'Supplier deleted.')
@@ -218,9 +208,3 @@ def supplier_delete(request, pk):
             )
         return redirect('supplier_index')
     return render(request, 'inventory/supplier_confirm_delete.html', {'object': supplier})
-=======
-        supplier.delete()
-        messages.success(request, 'Supplier deleted.')
-        return redirect('supplier_index')
-    return render(request, 'inventory/supplier_confirm_delete.html', {'object': supplier})
->>>>>>> origin/feature/s2-supplier-index

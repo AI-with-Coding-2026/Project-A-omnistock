@@ -10,75 +10,45 @@ User = get_user_model()
 
 class SupplierSearchAndAnnotationTests(TestCase):
     def setUp(self):
-<<<<<<< HEAD
         # Create and authenticate a test user
-=======
->>>>>>> origin/feature/s2-supplier-index
         self.user = User.objects.create_user(
             username="testuser",
             password="password123"
         )
         self.client.login(username="testuser", password="password123")
 
-<<<<<<< HEAD
         # Create suppliers
-=======
->>>>>>> origin/feature/s2-supplier-index
         self.supplier_a = Supplier.objects.create(name="Alpha Logistics", email="alpha@test.com")
         self.supplier_b = Supplier.objects.create(name="Beta Supplies", email="info@beta.com")
         self.supplier_c = Supplier.objects.create(name="Gamma Global", email="support@gamma.com")
 
-<<<<<<< HEAD
         # Create products with unique SKUs and unit_prices
-        Product.objects.create(
-            sku="SKU-B1",
-            name="Widget B1", 
-            supplier=self.supplier_b, 
-            stock_quantity=10, 
-=======
         Product.objects.create(
             sku="SKU-B1",
             name="Widget B1",
             supplier=self.supplier_b,
             stock_quantity=10,
->>>>>>> origin/feature/s2-supplier-index
             reorder_level=5,
             unit_price=Decimal('19.99')
         )
         Product.objects.create(
             sku="SKU-C1",
-<<<<<<< HEAD
-            name="Widget C1", 
-            supplier=self.supplier_c, 
-            stock_quantity=10, 
-=======
             name="Widget C1",
             supplier=self.supplier_c,
             stock_quantity=10,
->>>>>>> origin/feature/s2-supplier-index
             reorder_level=5,
             unit_price=Decimal('29.99')
         )
         Product.objects.create(
             sku="SKU-C2",
-<<<<<<< HEAD
-            name="Widget C2", 
-            supplier=self.supplier_c, 
-            stock_quantity=10, 
-=======
             name="Widget C2",
             supplier=self.supplier_c,
             stock_quantity=10,
->>>>>>> origin/feature/s2-supplier-index
             reorder_level=5,
             unit_price=Decimal('39.99')
         )
 
-<<<<<<< HEAD
-        self.url = reverse('supplier_list')
-=======
         self.url = reverse('supplier_index')
->>>>>>> origin/feature/s2-supplier-index
 
     def test_empty_query_returns_all_suppliers(self):
         response = self.client.get(self.url)
@@ -108,17 +78,12 @@ class SupplierSearchAndAnnotationTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         suppliers_by_id = {s.id: s.product_count for s in response.context['suppliers']}
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> origin/feature/s2-supplier-index
         self.assertEqual(suppliers_by_id[self.supplier_a.id], 0)
         self.assertEqual(suppliers_by_id[self.supplier_b.id], 1)
         self.assertEqual(suppliers_by_id[self.supplier_c.id], 2)
 
 
-<<<<<<< HEAD
 class ProductIndexViewTests(TestCase):
     def setUp(self):
         self.staff_user = User.objects.create_user(
@@ -207,8 +172,6 @@ class ProductIndexViewTests(TestCase):
         self.assertTrue(page_obj.has_previous())
 
 
-=======
->>>>>>> origin/feature/s2-supplier-index
 class SupplierFormTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
@@ -437,7 +400,6 @@ class ProductModelTest(TestCase):
         self.client.login(username="admin_test", password="password")
 
         response = self.client.get('/inventory/products/create/')
-<<<<<<< HEAD
         self.assertEqual(response.status_code, 200)
 
 
@@ -488,6 +450,3 @@ class ProtectedDeletionTests(TestCase):
         self.assertRedirects(response, reverse('supplier_index'))
         self.assertTrue(Supplier.objects.filter(pk=self.supplier.pk).exists())
         self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
-=======
-        self.assertEqual(response.status_code, 200)
->>>>>>> origin/feature/s2-supplier-index
