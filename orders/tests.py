@@ -1208,6 +1208,8 @@ class InvoicePdfTests(TestCase):
             )
 
         self.assertRedirects(response, reverse('invoice_view', args=[self.order.pk]))
+        follow_up = self.client.get(reverse('invoice_view', args=[self.order.pk]))
+        self.assertEqual(follow_up.status_code, 200)
 
 
 class OrderTransitionEndpointSecurityTests(TestCase):

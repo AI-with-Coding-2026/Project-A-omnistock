@@ -277,7 +277,7 @@ def invoice_pdf(request, order_id):
             request,
             'Sorry, the invoice PDF could not be generated. Please try again.',
         )
-        return redirect('invoice_view', order_id)
+        return redirect('invoice_view', pk=order.pk)
 
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
     response['Content-Disposition'] = (
