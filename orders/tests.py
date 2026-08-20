@@ -1,11 +1,12 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import F
 from django.template.loader import render_to_string
 from django.test import RequestFactory, TestCase
-from django.urls import reverse
+from django.urls import reverse, resolve
 
 from inventory.models import Product, Supplier
 from orders.models import InvalidOrderTransitionError, Invoice, Order, OrderItem
@@ -606,6 +607,17 @@ class OrderStateMachineModelTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.status, Order.STATUS_COMPLETED)
 
+    def test_mark_completed_does_not_restore_or_deduct_stock(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        stock_before = Product.objects.get(pk=self.product.pk).stock_quantity
+
+        order.mark_completed()
+        order.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(order.status, Order.STATUS_COMPLETED)
+        self.assertEqual(self.product.stock_quantity, stock_before)
+
     def test_mark_completed_raises_error_when_invalid(self):
         completed_order = self.create_order(status=Order.STATUS_COMPLETED)
         with self.assertRaises(InvalidOrderTransitionError):
@@ -772,6 +784,26 @@ class OrderCompleteViewTests(TestCase):
         self.assertRedirects(response, reverse('order_list'))
         order.refresh_from_db()
         self.assertEqual(order.status, Order.STATUS_COMPLETED)
+
+    def test_complete_does_not_modify_stock(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        Product.objects.filter(pk=self.product.pk).update(
+            stock_quantity=F('stock_quantity') - 2,
+        )
+        self.product.refresh_from_db()
+        stock_before_completion = self.product.stock_quantity
+
+        self.client.force_login(self.sales_rep)
+        response = self.client.post(
+            reverse('order_complete', args=[order.pk])
+        )
+
+        self.assertRedirects(response, reverse('order_list'))
+        order.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(order.status, Order.STATUS_COMPLETED)
+        self.assertEqual(self.product.stock_quantity, stock_before_completion)
 
     def test_complete_view_blocks_already_completed_order(self):
         order = self.create_order(status=Order.STATUS_COMPLETED)
@@ -1121,6 +1153,8 @@ class InvoicePdfTests(TestCase):
         self.product.save()
 
         request = RequestFactory().get('/')
+        request.resolver_match = resolve(reverse('order_list'))
+        request.user = self.admin
         html = render_to_string(
             'orders/invoice.html',
             {'order': self.order},
@@ -1138,8 +1172,10 @@ class InvoicePdfTests(TestCase):
 
     def test_invoice_pdf_template_converts_to_valid_pdf(self):
         request = RequestFactory().get('/')
+        request.resolver_match = resolve(reverse('order_list'))
+        request.user = self.admin
         html = render_to_string(
-            'orders/invoice.html',
+            'orders/invoice_pdf.html',
             {'order': self.order},
             request=request,
         )
@@ -1152,11 +1188,196 @@ class InvoicePdfTests(TestCase):
         invoice = Invoice.objects.create(order=self.order)
 
         request = RequestFactory().get('/')
+        request.resolver_match = resolve(reverse('order_list'))
+        request.user = self.admin
         html = render_to_string(
-            'orders/invoice.html',
+            'orders/invoice_pdf.html',
             {'order': self.order},
             request=request,
         )
 
         self.assertIn(invoice.invoice_number, html)
         self.assertNotIn(f'Invoice #:</strong> {self.order.pk}', html)
+
+    def test_invoice_pdf_handles_generation_failure(self):
+        self.client.force_login(self.admin)
+
+        with patch('orders.views.render_html_to_pdf', return_value=b""):
+            response = self.client.get(
+                reverse('invoice_pdf', args=[self.order.pk])
+            )
+
+        self.assertRedirects(response, reverse('invoice_view', args=[self.order.pk]))
+
+
+class OrderTransitionEndpointSecurityTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='security_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.sales_rep = User.objects.create_user(
+            username='security_sales_rep',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        self.supplier = Supplier.objects.create(
+            name='Security Supplier',
+            email='security@example.com',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='Security Product',
+            unit_price=Decimal('30.00'),
+            stock_quantity=15,
+        )
+
+    def create_order(self, status=Order.STATUS_PENDING):
+        order = Order.objects.create(
+            user=self.admin,
+            customer_name='Security Customer',
+            status=status,
+            total_amount=Decimal('60.00'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal('30.00'),
+        )
+        return order
+
+    def test_complete_endpoint_rejects_get_requests(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(
+            reverse('order_complete', args=[order.pk])
+        )
+
+        self.assertEqual(response.status_code, 405)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_PENDING)
+
+    def test_cancel_endpoint_rejects_get_requests(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse('order_cancel', args=[order.pk])
+        )
+
+        self.assertEqual(response.status_code, 405)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_PENDING)
+
+
+class OrderCancellationIdempotencyTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='idempotency_user',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.supplier = Supplier.objects.create(
+            name='Idempotency Supplier',
+            email='idempotency@example.com',
+        )
+        self.product_a = Product.objects.create(
+            supplier=self.supplier,
+            name='Idempotency Product A',
+            unit_price=Decimal('10.00'),
+            stock_quantity=50,
+        )
+        self.product_b = Product.objects.create(
+            supplier=self.supplier,
+            name='Idempotency Product B',
+            unit_price=Decimal('20.00'),
+            stock_quantity=30,
+        )
+
+    def test_cancel_restores_stock_exactly_once_per_item(self):
+        order = Order.objects.create(
+            user=self.user,
+            customer_name='Multi Item Customer',
+            status=Order.STATUS_PENDING,
+            total_amount=Decimal('100.00'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product_a,
+            quantity=3,
+            unit_price=Decimal('10.00'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product_b,
+            quantity=2,
+            unit_price=Decimal('20.00'),
+        )
+
+        Product.objects.filter(pk=self.product_a.pk).update(
+            stock_quantity=F('stock_quantity') - 3
+        )
+        Product.objects.filter(pk=self.product_b.pk).update(
+            stock_quantity=F('stock_quantity') - 2
+        )
+        self.product_a.refresh_from_db()
+        self.product_b.refresh_from_db()
+
+        initial_stock_a = self.product_a.stock_quantity
+        initial_stock_b = self.product_b.stock_quantity
+
+        order.cancel()
+        order.refresh_from_db()
+        self.product_a.refresh_from_db()
+        self.product_b.refresh_from_db()
+
+        self.assertEqual(order.status, Order.STATUS_CANCELLED)
+        self.assertEqual(self.product_a.stock_quantity, initial_stock_a + 3)
+        self.assertEqual(self.product_b.stock_quantity, initial_stock_b + 2)
+
+    def test_second_cancellation_via_view_does_not_restore_stock_again(self):
+        order = Order.objects.create(
+            user=self.user,
+            customer_name='Double Cancel Customer',
+            status=Order.STATUS_COMPLETED,
+            total_amount=Decimal('100.00'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product_a,
+            quantity=4,
+            unit_price=Decimal('10.00'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product_b,
+            quantity=1,
+            unit_price=Decimal('20.00'),
+        )
+
+        Product.objects.filter(pk=self.product_a.pk).update(
+            stock_quantity=F('stock_quantity') - 4
+        )
+        Product.objects.filter(pk=self.product_b.pk).update(
+            stock_quantity=F('stock_quantity') - 1
+        )
+        self.product_a.refresh_from_db()
+        self.product_b.refresh_from_db()
+
+        initial_stock_a = self.product_a.stock_quantity
+        initial_stock_b = self.product_b.stock_quantity
+
+        self.client.force_login(self.user)
+        self.client.post(reverse('order_cancel', args=[order.pk]))
+        self.client.post(reverse('order_cancel', args=[order.pk]))
+
+        order.refresh_from_db()
+        self.product_a.refresh_from_db()
+        self.product_b.refresh_from_db()
+
+        self.assertEqual(order.status, Order.STATUS_CANCELLED)
+        self.assertEqual(self.product_a.stock_quantity, initial_stock_a + 4)
+        self.assertEqual(self.product_b.stock_quantity, initial_stock_b + 1)

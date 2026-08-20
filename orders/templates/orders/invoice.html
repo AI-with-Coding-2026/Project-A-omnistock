@@ -1,335 +1,324 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Invoice #{{ order.invoice.invoice_number|default:order.pk }} - OmniStock</title>
-    <style>
-        @page {
-            size: letter portrait;
-            margin: 12mm 12mm 14mm 12mm;
-        }
+{% extends 'core/base.html' %}
+{% load static %}
 
-        @media print {
-            .action-bar {
-                display: none !important;
-            }
-        }
+{% block extra_head %}
+<style>
+    @page {
+        size: letter portrait;
+        margin: 12mm 12mm 14mm 12mm;
+    }
 
-        /* stylelint-disable-next-line at-rule-no-unknown */
-        @frame footer_frame {
-            -pdf-frame-content: footer_content;
-            left: 12mm;
-            width: 192mm;
-            top: 261mm;
-            height: 10mm;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: Helvetica, Arial, sans-serif;
-            font-size: 11px;
-            line-height: 1.5;
-            color: #1e2530;
-            margin: 0;
-            padding: 8mm 0 0 0;
-        }
-
+    @media print {
         .action-bar {
-            max-width: 780px;
-            margin: 0 auto 10px auto;
-            padding: 0 4mm;
+            display: none !important;
         }
+    }
 
-        .action-bar-inner {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            padding: 10px 14px;
-        }
+    * {
+        box-sizing: border-box;
+    }
 
-        .action-bar-inner a,
-        .action-bar-inner button {
-            font-family: inherit;
-            font-size: 11px;
-        }
+    body {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 11px;
+        line-height: 1.5;
+        color: #1e2530;
+        margin: 0;
+        padding: 8mm 0 0 0;
+    }
 
-        .btn {
-            display: inline-block;
-            padding: 7px 14px;
-            text-decoration: none;
-            border-radius: 5px;
-            cursor: pointer;
-            border: 1px solid transparent;
-            font-weight: 600;
-            font-size: 11px;
-        }
+    .action-bar {
+        max-width: 780px;
+        margin: 0 auto 10px auto;
+        padding: 0 4mm;
+    }
 
-        .btn-primary {
-            background-color: #0f172a;
-            color: #ffffff;
-            border-color: #0f172a;
-        }
+    .action-bar-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 10px 14px;
+    }
 
-        .btn-secondary {
-            background-color: #ffffff;
-            color: #334155;
-            border-color: #cbd5e1;
-        }
+    .action-bar-inner a,
+    .action-bar-inner button {
+        font-family: inherit;
+        font-size: 11px;
+    }
 
-        .invoice-wrap {
-            max-width: 780px;
-            margin: 0 auto;
-        }
+    .btn {
+        display: inline-block;
+        padding: 7px 14px;
+        text-decoration: none;
+        border-radius: 5px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        font-weight: 600;
+        font-size: 11px;
+    }
 
-        .banner-table {
-            width: 100%;
-            background-color: #12182b;
-            color: #ffffff;
-            margin-bottom: 14px;
-            border-collapse: collapse;
-        }
+    .btn-primary {
+        background-color: #0f172a;
+        color: #ffffff;
+        border-color: #0f172a;
+    }
 
-        .banner-cell-left {
-            padding: 14px 18px;
-            vertical-align: middle;
-            width: 60%;
-        }
+    .btn-secondary {
+        background-color: #ffffff;
+        color: #334155;
+        border-color: #cbd5e1;
+    }
 
-        .banner-cell-right {
-            padding: 14px 18px;
-            vertical-align: middle;
-            text-align: right;
-            width: 40%;
-        }
+    .invoice-wrap {
+        max-width: 780px;
+        margin: 0 auto;
+    }
 
-        .brand-name {
-            font-size: 17px;
-            font-weight: bold;
-            color: #ffffff;
-        }
+    .banner-table {
+        width: 100%;
+        background-color: #12182b;
+        color: #ffffff;
+        margin-bottom: 14px;
+        border-collapse: collapse;
+    }
 
-        .brand-subtext {
-            font-size: 8px;
-            color: #8b93b0;
-            margin-top: 3px;
-            text-transform: uppercase;
-        }
+    .banner-cell-left {
+        padding: 14px 18px;
+        vertical-align: middle;
+        width: 60%;
+    }
 
-        .doc-type {
-            font-size: 20px;
-            font-weight: bold;
-            color: #ffffff;
-            text-transform: uppercase;
-        }
+    .banner-cell-right {
+        padding: 14px 18px;
+        vertical-align: middle;
+        text-align: right;
+        width: 40%;
+    }
 
-        .doc-ref {
-            font-size: 10px;
-            color: #aab1cc;
-            margin-top: 5px;
-        }
+    .brand-name {
+        font-size: 17px;
+        font-weight: bold;
+        color: #ffffff;
+    }
 
-        .doc-ref strong {
-            color: #e2e5f5;
-        }
+    .brand-subtext {
+        font-size: 8px;
+        color: #8b93b0;
+        margin-top: 3px;
+        text-transform: uppercase;
+    }
 
-        .info-grid {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 14px;
-        }
+    .doc-type {
+        font-size: 20px;
+        font-weight: bold;
+        color: #ffffff;
+        text-transform: uppercase;
+    }
 
-        .info-card {
-            background-color: #f7f8fc;
-            border: 1px solid #e7e9f3;
-            padding: 10px 12px;
-            vertical-align: top;
-        }
+    .doc-ref {
+        font-size: 10px;
+        color: #aab1cc;
+        margin-top: 5px;
+    }
 
-        .info-card-spacer {
-            width: 10px;
-        }
+    .doc-ref strong {
+        color: #e2e5f5;
+    }
 
-        .card-label {
-            font-size: 8px;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #6b7290;
-            margin-bottom: 6px;
-            padding-bottom: 4px;
-            border-bottom: 1px solid #e7e9f3;
-        }
+    .info-grid {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 14px;
+    }
 
-        .card-value-primary {
-            font-size: 12px;
-            font-weight: bold;
-            color: #12182b;
-            margin-bottom: 3px;
-        }
+    .info-card {
+        background-color: #f7f8fc;
+        border: 1px solid #e7e9f3;
+        padding: 10px 12px;
+        vertical-align: top;
+    }
 
-        .card-value-secondary {
-            font-size: 9px;
-            color: #565d78;
-            line-height: 1.5;
-        }
+    .info-card-spacer {
+        width: 10px;
+    }
 
-        .card-value-secondary strong {
-            color: #3a4160;
-        }
+    .card-label {
+        font-size: 8px;
+        font-weight: bold;
+        text-transform: uppercase;
+        color: #6b7290;
+        margin-bottom: 6px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #e7e9f3;
+    }
 
-        .status-completed {
-            color: #0f8a4c;
-            font-weight: bold;
-            font-size: 9px;
-            text-transform: uppercase;
-        }
+    .card-value-primary {
+        font-size: 12px;
+        font-weight: bold;
+        color: #12182b;
+        margin-bottom: 3px;
+    }
 
-        .status-cancelled {
-            color: #c81e3a;
-            font-weight: bold;
-            font-size: 9px;
-            text-transform: uppercase;
-        }
+    .card-value-secondary {
+        font-size: 9px;
+        color: #565d78;
+        line-height: 1.5;
+    }
 
-        .status-pending {
-            color: #b6790a;
-            font-weight: bold;
-            font-size: 9px;
-            text-transform: uppercase;
-        }
+    .card-value-secondary strong {
+        color: #3a4160;
+    }
 
-        .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 12px;
-        }
+    .status-completed {
+        color: #0f8a4c;
+        font-weight: bold;
+        font-size: 9px;
+        text-transform: uppercase;
+    }
 
-        .items-table th {
-            background-color: #12182b;
-            color: #ffffff;
-            font-size: 8px;
-            font-weight: bold;
-            text-transform: uppercase;
-            padding: 8px 10px;
-            border: none;
-        }
+    .status-cancelled {
+        color: #c81e3a;
+        font-weight: bold;
+        font-size: 9px;
+        text-transform: uppercase;
+    }
 
-        .items-table td {
-            padding: 8px 10px;
-            border-bottom: 1px solid #edeef5;
-            font-size: 10px;
-            color: #3a4160;
-            vertical-align: middle;
-        }
+    .status-pending {
+        color: #b6790a;
+        font-weight: bold;
+        font-size: 9px;
+        text-transform: uppercase;
+    }
 
-        .items-table tr.even td {
-            background-color: #f7f8fc;
-        }
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 12px;
+    }
 
-        .items-table tr.last-row td {
-            border-bottom: 2px solid #12182b;
-        }
+    .items-table th {
+        background-color: #12182b;
+        color: #ffffff;
+        font-size: 8px;
+        font-weight: bold;
+        text-transform: uppercase;
+        padding: 8px 10px;
+        border: none;
+    }
 
-        .product-title {
-            font-weight: bold;
-            color: #12182b;
-            font-size: 10px;
-        }
+    .items-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #edeef5;
+        font-size: 10px;
+        color: #3a4160;
+        vertical-align: middle;
+    }
 
-        .product-sku {
-            font-size: 8px;
-            color: #8b93b0;
-            margin-top: 2px;
-        }
+    .items-table tr.even td {
+        background-color: #f7f8fc;
+    }
 
-        .bottom-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 16px;
-        }
+    .items-table tr.last-row td {
+        border-bottom: 2px solid #12182b;
+    }
 
-        .notes-cell {
-            vertical-align: top;
-            width: 50%;
-            padding-right: 12px;
-        }
+    .product-title {
+        font-weight: bold;
+        color: #12182b;
+        font-size: 10px;
+    }
 
-        .notes-box {
-            background-color: #f7f8fc;
-            border: 1px solid #e7e9f3;
-            padding: 10px 12px;
-        }
+    .product-sku {
+        font-size: 8px;
+        color: #8b93b0;
+        margin-top: 2px;
+    }
 
-        .notes-title {
-            font-size: 8px;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #565d78;
-            margin-bottom: 5px;
-        }
+    .bottom-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 16px;
+    }
 
-        .notes-body {
-            font-size: 9px;
-            color: #6b7290;
-            line-height: 1.5;
-        }
+    .notes-cell {
+        vertical-align: top;
+        width: 50%;
+        padding-right: 12px;
+    }
 
-        .totals-cell {
-            vertical-align: top;
-            width: 50%;
-        }
+    .notes-box {
+        background-color: #f7f8fc;
+        border: 1px solid #e7e9f3;
+        padding: 10px 12px;
+    }
 
-        .totals-table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 1px solid #e7e9f3;
-        }
+    .notes-title {
+        font-size: 8px;
+        font-weight: bold;
+        text-transform: uppercase;
+        color: #565d78;
+        margin-bottom: 5px;
+    }
 
-        .totals-row td {
-            padding: 7px 10px;
-            font-size: 10px;
-            color: #565d78;
-            border-bottom: 1px solid #f0f1f7;
-        }
+    .notes-body {
+        font-size: 9px;
+        color: #6b7290;
+        line-height: 1.5;
+    }
 
-        .grand-total-row td {
-            padding: 10px 12px;
-            background-color: #12182b;
-            color: #ffffff;
-            font-size: 12px;
-            font-weight: bold;
-        }
+    .totals-cell {
+        vertical-align: top;
+        width: 50%;
+    }
 
-        #pdfFooter {
-            border-top: 1px solid #e7e9f3;
-            padding-top: 6px;
-            font-size: 8px;
-            color: #a3a9c2;
-        }
+    .totals-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #e7e9f3;
+    }
 
-        .footer-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+    .totals-row td {
+        padding: 7px 10px;
+        font-size: 10px;
+        color: #565d78;
+        border-bottom: 1px solid #f0f1f7;
+    }
 
-        .footer-left {
-            text-align: left;
-            width: 60%;
-        }
+    .grand-total-row td {
+        padding: 10px 12px;
+        background-color: #12182b;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: bold;
+    }
 
-        .footer-right {
-            text-align: right;
-            width: 40%;
-        }
-    </style>
-</head>
-<body>
+    #pdfFooter {
+        border-top: 1px solid #e7e9f3;
+        padding-top: 6px;
+        font-size: 8px;
+        color: #a3a9c2;
+    }
 
-    {% if not is_pdf %}
+    .footer-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .footer-left {
+        text-align: left;
+        width: 60%;
+    }
+
+    .footer-right {
+        text-align: right;
+        width: 40%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
     <div class="action-bar">
         <table class="action-bar-inner" cellpadding="0" cellspacing="0" width="100%">
             <tr>
@@ -362,7 +351,6 @@
             </tr>
         </table>
     </div>
-    {% endif %}
 
     <div class="invoice-wrap">
         <table class="banner-table" cellpadding="0" cellspacing="0">
@@ -498,6 +486,4 @@
             </table>
         </div>
     </div>
-
-</body>
-</html>
+{% endblock %}

@@ -7,6 +7,7 @@ from django.db.models import F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.views.decorators.http import require_POST
 
 from core.utils import admin_required, staff_or_admin_required
 from inventory.models import Product
@@ -191,6 +192,7 @@ def order_create(request):
 
 
 @staff_or_admin_required
+@require_POST
 @transaction.atomic
 def order_complete(request, pk):
     order = get_object_or_404(
@@ -222,6 +224,7 @@ def order_complete(request, pk):
 
 
 @admin_required
+@require_POST
 @transaction.atomic
 def order_cancel(request, pk):
     order = get_object_or_404(
@@ -242,13 +245,9 @@ def order_cancel(request, pk):
         )
         return redirect(ORDER_CANCEL_REDIRECT)
 
-    previous_status = order.status
     try:
         order.cancel()
-        if previous_status == Order.STATUS_COMPLETED:
-            messages.success(request, 'Order cancelled and stock restored.')
-        else:
-            messages.success(request, 'Order cancelled and stock restored.')
+        messages.success(request, 'Order cancelled and stock restored.')
     except InvalidOrderTransitionError as e:
         logger.error("Error cancelling order #%s: %s", order.pk, str(e))
         messages.error(request, str(e))
@@ -269,7 +268,7 @@ def invoice_view(request, pk):
 def invoice_pdf(request, order_id):
     order = get_object_or_404(Order, pk=order_id)
 
-    html = render_to_string('orders/invoice.html', {'order': order, 'is_pdf': True}, request=request)
+    html = render_to_string('orders/invoice_pdf.html', {'order': order}, request=request)
     pdf_bytes = render_html_to_pdf(html)
 
     if not pdf_bytes:
