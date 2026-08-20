@@ -447,6 +447,21 @@ class OrderCancellationTests(TestCase):
         )
         return order
 
+    def create_pending_order(self):
+        order = Order.objects.create(
+            user=self.admin,
+            customer_name='Pending Customer',
+            status=Order.STATUS_PENDING,
+            total_amount=Decimal('100.00'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal('50.00'),
+        )
+        return order
+
     def test_admin_cancellation_restores_stock_and_updates_status(self):
         order = self.create_completed_order()
         self.client.force_login(self.admin)
@@ -492,19 +507,8 @@ class OrderCancellationTests(TestCase):
         self.assertEqual(order.status, Order.STATUS_COMPLETED)
         self.assertEqual(self.product.stock_quantity, 8)
 
-    def test_pending_order_cannot_be_cancelled_or_restore_stock(self):
-        order = Order.objects.create(
-            user=self.admin,
-            customer_name='Pending Customer',
-            status=Order.STATUS_PENDING,
-            total_amount=Decimal('100.00'),
-        )
-        OrderItem.objects.create(
-            order=order,
-            product=self.product,
-            quantity=2,
-            unit_price=Decimal('50.00'),
-        )
+    def test_pending_order_can_be_cancelled_and_restore_stock(self):
+        order = self.create_pending_order()
         self.client.force_login(self.admin)
 
         response = self.client.post(
@@ -516,5 +520,5 @@ class OrderCancellationTests(TestCase):
         order.refresh_from_db()
         self.product.refresh_from_db()
 
-        self.assertEqual(order.status, Order.STATUS_PENDING)
-        self.assertEqual(self.product.stock_quantity, 8)
+        self.assertEqual(order.status, Order.STATUS_CANCELLED)
+        self.assertEqual(self.product.stock_quantity, 10)

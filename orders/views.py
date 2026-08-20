@@ -171,10 +171,10 @@ def order_cancel(request, pk):
         messages.warning(request, 'This order is already cancelled.')
         return redirect(ORDER_CANCEL_REDIRECT)
 
-    if order.status != Order.STATUS_COMPLETED:
+    if order.status not in (Order.STATUS_PENDING, Order.STATUS_COMPLETED):
         messages.warning(
             request,
-            'Only completed orders can be cancelled.',
+            'Only pending or completed orders can be cancelled.',
         )
         return redirect(ORDER_CANCEL_REDIRECT)
 
@@ -188,6 +188,14 @@ def order_cancel(request, pk):
 
     messages.success(request, 'Order cancelled and stock restored.')
     return redirect(ORDER_CANCEL_REDIRECT)
+
+@staff_or_admin_required
+def order_detail(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+    return render(request, 'orders/order_detail.html', {
+        'order': order,
+        'is_admin': request.user.role == 'ADMIN',
+    })
 
 
 @staff_or_admin_required
