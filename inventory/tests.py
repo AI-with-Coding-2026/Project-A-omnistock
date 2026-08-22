@@ -18,9 +18,9 @@ class SupplierSearchAndAnnotationTests(TestCase):
         self.client.login(username="testuser", password="password123")
 
         # Create suppliers
-        self.supplier_a = Supplier.objects.create(name="Alpha Logistics", email="alpha@test.com")
-        self.supplier_b = Supplier.objects.create(name="Beta Supplies", email="info@beta.com")
-        self.supplier_c = Supplier.objects.create(name="Gamma Global", email="support@gamma.com")
+        self.supplier_a = Supplier.objects.create(name="Alpha Logistics", email="alpha@test.com", phone="543214367")
+        self.supplier_b = Supplier.objects.create(name="Beta Supplies", email="info@beta.com", phone="567890432")
+        self.supplier_c = Supplier.objects.create(name="Gamma Global", email="support@gamma.com", phone="543216789")
 
         # Create products with unique SKUs and unit_prices
         Product.objects.create(
@@ -93,8 +93,8 @@ class ProductIndexViewTests(TestCase):
         self.staff_user.save()
         self.client.force_login(self.staff_user)
 
-        self.supplier_a = Supplier.objects.create(name='Acme Supplies', email='acme@example.com')
-        self.supplier_b = Supplier.objects.create(name='Widget Co', email='widgetco@example.com')
+        self.supplier_a = Supplier.objects.create(name='Acme Supplies', email='acme@example.com', phone='566473829')
+        self.supplier_b = Supplier.objects.create(name='Widget Co', email='widgetco@example.com', phone='543672189')
 
         self.widget_a = Product.objects.create(
             sku='WD-1001', name='Widget A', supplier=self.supplier_a,
@@ -251,6 +251,81 @@ class SupplierFormTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Supplier.objects.filter(email='acme@example.com').count(), 1)
 
+
+    def test_create_rejects_empty_phone(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse('supplier_create'),
+            self._valid_data(phone=''),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            Supplier.objects.filter(email='new@example.com').exists()
+        )
+        self.assertFormError(
+            response.context['form'],
+            'phone',
+            'Phone number is required.'
+        )
+
+    def test_edit_rejects_empty_phone(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse('supplier_edit', args=[self.existing.pk]),
+            self._valid_data(phone=''),
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.existing.refresh_from_db()
+        self.assertEqual(self.existing.phone, '555-0100')
+
+        self.assertFormError(
+            response.context['form'],
+            'phone',
+            'Phone number is required.'
+        )
+
+    def test_create_rejects_invalid_phone(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse('supplier_create'),
+            self._valid_data(phone='abc'),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            Supplier.objects.filter(email='new@example.com').exists()
+        )
+        self.assertFormError(
+            response.context['form'],
+            'phone',
+            'Enter a valid phone number.'
+        )
+
+    def test_edit_rejects_invalid_phone(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse('supplier_edit', args=[self.existing.pk]),
+            self._valid_data(phone='abc'),
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.existing.refresh_from_db()
+        self.assertEqual(self.existing.phone, '555-0100')
+
+        self.assertFormError(
+            response.context['form'],
+            'phone',
+            'Enter a valid phone number.'
+        )
+
     def test_edit_loads_existing_data(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse('supplier_edit', args=[self.existing.pk]))
@@ -290,6 +365,7 @@ class SupplierFormTests(TestCase):
         other = Supplier.objects.create(
             name='Other Co',
             email='other@example.com',
+            phone='543678975'
         )
         self.client.force_login(self.admin)
         response = self.client.post(
@@ -382,7 +458,7 @@ class SupplierFormTests(TestCase):
 
 class ProductModelTest(TestCase):
     def setUp(self):
-        self.supplier = Supplier.objects.create(name="Test Supplier", email="test@supp.com")
+        self.supplier = Supplier.objects.create(name="Test Supplier", email="test@supp.com", phone="567897654")
 
     def test_auto_generate_sku(self):
         product = Product.objects.create(
@@ -415,6 +491,7 @@ class ProtectedDeletionTests(TestCase):
         self.supplier = Supplier.objects.create(
             name='Test Supplier',
             email='supplier@test.com',
+            phone='543533576'
         )
         self.product = Product.objects.create(
             supplier=self.supplier,
