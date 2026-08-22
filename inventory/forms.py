@@ -1,5 +1,5 @@
 from django import forms
-
+from django.core.validators import RegexValidator
 from .models import Product, Supplier
 
 BASE_INPUT = (
@@ -10,6 +10,19 @@ BASE_INPUT = (
 )
 
 class SupplierForm(forms.ModelForm):
+    phone = forms.CharField(
+        required=True,
+        validators=[
+            RegexValidator(
+                regex=r'^[0-9+\-\s()]+$',
+                message='Enter a valid phone number.'
+            )
+        ],
+        error_messages={
+            'required': 'Phone number is required.'
+        }
+    )
+
     class Meta:
         model = Supplier
         fields = ['name', 'email', 'phone', 'address']
