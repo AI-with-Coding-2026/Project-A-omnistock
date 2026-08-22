@@ -16,7 +16,6 @@ from .forms import OrderForm
 from .models import InvalidOrderTransitionError, Order, OrderItem
 from .pdf import render_html_to_pdf
 
-
 logger = logging.getLogger(__name__)
 
 ORDER_CANCEL_REDIRECT = 'order_list'
@@ -47,15 +46,17 @@ def order_index(request):
         'customer': customer,
     })
 
+
 @staff_or_admin_required
-def order_detail(request, order_id):
+def order_detail(request, pk):
     order = get_object_or_404(
-    Order.objects.prefetch_related('items__product'),
-    pk=order_id,
+        Order.objects.prefetch_related('items__product'),
+        pk=pk,
     )
     return render(request, 'orders/order_detail.html', {
         'order': order
     })
+
 
 @staff_or_admin_required
 @transaction.atomic
@@ -75,7 +76,7 @@ def order_create(request):
     if request.method == 'POST' and form.is_valid():
         product_ids = request.POST.getlist('items[][product]')
         quantities = request.POST.getlist('items[][quantity]')
- 
+
         requested_quantities = defaultdict(int)
         line_items = []
         has_error = False
@@ -122,7 +123,6 @@ def order_create(request):
                 'title': 'Create Order',
                 'products': products,
             })
-            
 
         locked_products = {}
 
@@ -151,14 +151,12 @@ def order_create(request):
                 'products': products,
             })
 
-
         order = form.save(commit=False)
         order.user = request.user
         order.save()
 
         total = 0
 
-   
         for product_id, quantity in line_items:
             product = locked_products[product_id]
 
@@ -176,7 +174,6 @@ def order_create(request):
             )
 
             total += product.unit_price * quantity
-
 
         order.total_amount = total
         order.save()
