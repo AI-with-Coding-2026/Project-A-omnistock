@@ -1,11 +1,9 @@
-from django.db.models import ProtectedError, Q
 from django.contrib import messages
-from django.db import IntegrityError
-from django.db.models import F, BooleanField, Case, When, Value
-from django.shortcuts import get_object_or_404, redirect, render
-
-from django.urls import reverse
 from django.core.paginator import Paginator
+from django.db import IntegrityError
+from django.db.models import BooleanField, Case, Count, F, ProtectedError, Q, Value, When
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from core.utils import (
     admin_or_inventory_manager_required,
@@ -37,6 +35,7 @@ def product_list(request):
         'low_stock': low_stock,
         'is_admin': request.user.role == 'ADMIN',
     })
+
 
 @staff_or_admin_required
 def product_index(request):
@@ -83,6 +82,7 @@ def product_index(request):
         'querystring': querystring,
     })
 
+
 @admin_required
 def product_create(request):
     form = ProductForm(request.POST or None)
@@ -109,6 +109,7 @@ def product_update(request, pk):
         'title': 'Update Product',
     })
 
+
 @admin_required
 def product_delete(request, pk):
     product = get_object_or_404(Product, pk=pk)
@@ -125,37 +126,38 @@ def product_delete(request, pk):
     return render(request, 'inventory/product_confirm_delete.html', {'object': product})
 
 
-@staff_or_admin_required  # All staff roles can VIEW the supplier list (including Sales Rep)
+@staff_or_admin_required
 def supplier_list(request):
     """
     Supplier index page - read-only view accessible by all staff roles.
     Sales Rep can view but not create/edit (buttons hidden via can_manage_suppliers).
+    Supports search by name/email and shows product count per supplier.
     """
+    q = request.GET.get('q', '').strip()
     role = request.user.role
-    suppliers = Supplier.objects.prefetch_related('products').all()
+    suppliers = Supplier.objects.annotate(product_count=Count('products'))
+
+    if q:
+        suppliers = suppliers.filter(
+            Q(name__icontains=q) | Q(email__icontains=q)
+        )
+
     return render(request, 'inventory/supplier_list.html', {
         'suppliers': suppliers,
-        'is_admin': role == 'ADMIN',  # Used to show/hide Delete button (Admin only)
-        'can_manage_suppliers': role in ('ADMIN', 'INVENTORY_MANAGER'),  # Controls Create/Edit button visibility
+        'q': q,
+        'is_admin': role == 'ADMIN',
+        'can_manage_suppliers': role in ('ADMIN', 'INVENTORY_MANAGER'),
     })
 
 
-@admin_or_inventory_manager_required  # Only Admin and Inventory Manager can create suppliers
+@admin_or_inventory_manager_required
 def supplier_create(request):
-    """
-    Create new supplier. Enforces role-based access at the view level.
-    Sales Rep attempting direct URL access will get 403 PermissionDenied.
-
-    IntegrityError handling provides defense-in-depth for email uniqueness
-    (form validation is primary, DB constraint is backstop).
-    """
     if request.method == 'POST':
         form = SupplierForm(request.POST)
         if form.is_valid():
             try:
                 form.save()
             except IntegrityError:
-                # DB-level uniqueness violation (e.g., race condition or direct DB insert)
                 form.add_error('email', 'This email is already in use.')
             else:
                 messages.success(request, 'Supplier created.')
@@ -169,15 +171,8 @@ def supplier_create(request):
     })
 
 
-@admin_or_inventory_manager_required  # Only Admin and Inventory Manager can edit suppliers
+@admin_or_inventory_manager_required
 def supplier_edit(request, pk):
-    """
-    Edit existing supplier. Enforces role-based access at the view level.
-    Sales Rep attempting direct URL access will get 403 PermissionDenied.
-
-    ModelForm handles allowing unchanged email (same instance) while rejecting
-    another supplier's email. IntegrityError provides DB-level protection.
-    """
     supplier = get_object_or_404(Supplier, pk=pk)
 
     if request.method == 'POST':
@@ -186,7 +181,6 @@ def supplier_edit(request, pk):
             try:
                 form.save()
             except IntegrityError:
-                # Catches attempt to use another supplier's email
                 form.add_error('email', 'This email is already in use.')
             else:
                 messages.success(request, 'Supplier updated.')
