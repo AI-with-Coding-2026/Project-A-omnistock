@@ -12,6 +12,8 @@ from .models import User
 from .utils import staff_or_admin_required
 
 
+
+
 class RoleBasedLoginView(LoginView):
     template_name = 'core/login.html'
     authentication_form = StyledLoginForm
@@ -114,3 +116,5 @@ def dashboard(request):
         context['description'] = 'View inventory and create orders.'
 
     return render(request, 'core/dashboard.html', context)
+
+
