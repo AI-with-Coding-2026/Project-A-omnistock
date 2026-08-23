@@ -9,7 +9,7 @@ from orders.models import Order
 
 from .forms import StyledLoginForm
 from .models import User
-from .utils import staff_or_admin_required
+from .utils import admin_required, staff_or_admin_required
 
 
 
@@ -118,3 +118,9 @@ def dashboard(request):
     return render(request, 'core/dashboard.html', context)
 
 
+@admin_required
+def reports(request):
+    return render(request, 'core/reports.html', {
+        'title': 'Executive Reports',
+        'is_admin': True,
+    })
