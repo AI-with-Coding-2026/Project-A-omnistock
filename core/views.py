@@ -1,3 +1,4 @@
+from django.contrib.auth import logout
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import render
 from django.urls import reverse
@@ -11,13 +12,51 @@ from .models import User
 from .utils import staff_or_admin_required
 
 
+
+
 class RoleBasedLoginView(LoginView):
     template_name = 'core/login.html'
     authentication_form = StyledLoginForm
     redirect_authenticated_user = True
 
+    CUSTOMER_ACCESS_MESSAGE = "Customer accounts cannot access the staff portal."
+
+    def dispatch(self, request, *args, **kwargs):
+        # Handle already-authenticated customer sessions before
+        # LoginView redirects authenticated users.
+        if (
+            request.user.is_authenticated
+            and request.user.role == User.ROLE_CUSTOMER
+        ):
+            logout(request)
+
+            form = self.get_form()
+            context = self.get_context_data(
+                form=form,
+                customer_access_error=self.CUSTOMER_ACCESS_MESSAGE,
+            )
+
+            return self.render_to_response(context)
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        user = form.get_user()
+
+        # Customer accounts do not have access to the staff portal.
+        # Reject the login without creating an authenticated session.
+        if user.role == User.ROLE_CUSTOMER:
+            context = self.get_context_data(
+                form=form,
+                customer_access_error=self.CUSTOMER_ACCESS_MESSAGE,
+            )
+            return self.render_to_response(context)
+
+        return super().form_valid(form)
+
     def get_success_url(self):
         user = self.request.user
+
         if user.role == User.ROLE_ADMIN:
             return reverse('dashboard')
         elif user.role == User.ROLE_INVENTORY_MANAGER:
@@ -63,7 +102,9 @@ def dashboard(request):
 
     if request.user.role == User.ROLE_ADMIN:
         context['title'] = 'Admin Dashboard'
-        context['description'] = 'Full access to inventory, suppliers, orders, and user management.'
+        context['description'] = (
+            'Full access to inventory, suppliers, orders, and user management.'
+        )
     elif request.user.role == User.ROLE_INVENTORY_MANAGER:
         context['title'] = 'Inventory Manager Dashboard'
         context['description'] = 'View inventory and suppliers; create orders.'
@@ -75,3 +116,5 @@ def dashboard(request):
         context['description'] = 'View inventory and create orders.'
 
     return render(request, 'core/dashboard.html', context)
+
+

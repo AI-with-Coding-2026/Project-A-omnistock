@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 
 from django.contrib import messages
@@ -5,16 +6,17 @@ from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.loader import get_template
-
-from xhtml2pdf import pisa
+from django.template.loader import render_to_string
+from django.views.decorators.http import require_POST
 
 from core.utils import admin_required, staff_or_admin_required
 from inventory.models import Product
 
 from .forms import OrderForm
-from .models import Order, OrderItem
+from .models import InvalidOrderTransitionError, Order, OrderItem
+from .pdf import render_html_to_pdf
 
+logger = logging.getLogger(__name__)
 
 ORDER_CANCEL_REDIRECT = 'order_list'
 
@@ -44,15 +46,17 @@ def order_index(request):
         'customer': customer,
     })
 
+
 @staff_or_admin_required
-def order_detail(request, order_id):
+def order_detail(request, pk):
     order = get_object_or_404(
-    Order.objects.prefetch_related('items__product'),
-    pk=order_id,
+        Order.objects.prefetch_related('items__product'),
+        pk=pk,
     )
     return render(request, 'orders/order_detail.html', {
         'order': order
     })
+
 
 @staff_or_admin_required
 @transaction.atomic
@@ -72,7 +76,7 @@ def order_create(request):
     if request.method == 'POST' and form.is_valid():
         product_ids = request.POST.getlist('items[][product]')
         quantities = request.POST.getlist('items[][quantity]')
- 
+
         requested_quantities = defaultdict(int)
         line_items = []
         has_error = False
@@ -119,7 +123,6 @@ def order_create(request):
                 'title': 'Create Order',
                 'products': products,
             })
-            
 
         locked_products = {}
 
@@ -148,14 +151,12 @@ def order_create(request):
                 'products': products,
             })
 
-
         order = form.save(commit=False)
         order.user = request.user
         order.save()
 
         total = 0
 
-   
         for product_id, quantity in line_items:
             product = locked_products[product_id]
 
@@ -174,7 +175,6 @@ def order_create(request):
 
             total += product.unit_price * quantity
 
-
         order.total_amount = total
         order.save()
 
@@ -188,7 +188,40 @@ def order_create(request):
     })
 
 
+@staff_or_admin_required
+@require_POST
+@transaction.atomic
+def order_complete(request, pk):
+    order = get_object_or_404(
+        Order.objects.select_for_update(),
+        pk=pk,
+    )
+
+    if not order.can_mark_completed():
+        logger.warning(
+            "Invalid status transition attempted: Cannot mark Order #%s as completed from status '%s' (User: %s)",
+            order.pk,
+            order.status,
+            request.user,
+        )
+        messages.warning(
+            request,
+            f"Order #{order.pk} cannot be marked as completed from its current status '{order.get_status_display()}'.",
+        )
+        return redirect('order_list')
+
+    try:
+        order.mark_completed()
+        messages.success(request, f"Order #{order.pk} has been marked as completed.")
+    except InvalidOrderTransitionError as e:
+        logger.error("Error completing order #%s: %s", order.pk, str(e))
+        messages.error(request, str(e))
+
+    return redirect('order_list')
+
+
 @admin_required
+@require_POST
 @transaction.atomic
 def order_cancel(request, pk):
     order = get_object_or_404(
@@ -196,26 +229,26 @@ def order_cancel(request, pk):
         pk=pk,
     )
 
-    if order.status == Order.STATUS_CANCELLED:
-        messages.warning(request, 'This order is already cancelled.')
-        return redirect(ORDER_CANCEL_REDIRECT)
-
-    if order.status != Order.STATUS_COMPLETED:
+    if not order.can_cancel():
+        logger.warning(
+            "Invalid status transition attempted: Cannot cancel Order #%s from status '%s' (User: %s)",
+            order.pk,
+            order.status,
+            request.user,
+        )
         messages.warning(
             request,
-            'Only completed orders can be cancelled.',
+            f"This order cannot be cancelled from its current status '{order.get_status_display()}'.",
         )
         return redirect(ORDER_CANCEL_REDIRECT)
 
-    for item in order.items.all():
-        Product.objects.filter(id=item.product_id).update(
-            stock_quantity=F('stock_quantity') + item.quantity,
-        )
+    try:
+        order.cancel()
+        messages.success(request, 'Order cancelled and stock restored.')
+    except InvalidOrderTransitionError as e:
+        logger.error("Error cancelling order #%s: %s", order.pk, str(e))
+        messages.error(request, str(e))
 
-    order.status = Order.STATUS_CANCELLED
-    order.save(update_fields=['status'])
-
-    messages.success(request, 'Order cancelled and stock restored.')
     return redirect(ORDER_CANCEL_REDIRECT)
 
 
@@ -227,20 +260,24 @@ def invoice_view(request, pk):
         'order': order,
     })
 
-def render_html_to_pdf(html):
-    response = HttpResponse(content_type='application/pdf')
-    pisa_status = pisa.CreatePDF(html, dest=response)
-    if pisa_status.err:
-        return None
-    return response 
 
 @staff_or_admin_required
-def invoice_pdf(request, pk):
-    order = get_object_or_404(Order, pk=pk)
-    template = get_template('orders/invoice_pdf.html')
-    html = template.render({'order': order})
-    pdf_response = render_html_to_pdf(html)
-    if pdf_response is None:
-        return HttpResponse('Error generating PDF', status=500)
-    pdf_response['Content-Disposition'] = f'attachment; filename="invoice_{order.order_number}.pdf"'
-    return pdf_response
+def invoice_pdf(request, order_id):
+    order = get_object_or_404(Order, pk=order_id)
+
+    html = render_to_string('orders/invoice_pdf.html', {'order': order}, request=request)
+    pdf_bytes = render_html_to_pdf(html)
+
+    if not pdf_bytes:
+        logger.error("Failed to generate PDF for Order #%s", order.pk)
+        messages.error(
+            request,
+            'Sorry, the invoice PDF could not be generated. Please try again.',
+        )
+        return redirect('invoice_view', pk=order.pk)
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f'attachment; filename="invoice_{order.order_number}.pdf"'
+    )
+    return response
