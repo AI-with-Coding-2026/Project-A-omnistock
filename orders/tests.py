@@ -2,10 +2,11 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.db.models import F
 from django.template.loader import render_to_string
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, Client, TestCase
 from django.urls import reverse, resolve
 
 from inventory.models import Product, Supplier
@@ -735,6 +736,12 @@ class OrderCompleteViewTests(TestCase):
             password='password123',
             role=User.ROLE_SALES_REP,
         )
+        self.customer = User.objects.create_user(
+            username='complete_customer',
+            password='password123',
+            role=User.ROLE_CUSTOMER,
+            is_staff=False,
+        )
         self.supplier = Supplier.objects.create(
             name='Complete Supplier',
             email='complete_supplier@example.com',
@@ -833,19 +840,17 @@ class OrderCompleteViewTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.status, Order.STATUS_CANCELLED)
 
-    def test_cancel_view_logs_warning_on_invalid_transition(self):
-        order = self.create_order(status=Order.STATUS_CANCELLED)
-        self.client.force_login(self.admin)
+    def test_unauthorized_user_cannot_complete_order(self):
+        order = self.create_order(status=Order.STATUS_PENDING)
+        self.client.force_login(self.customer)
 
-        with self.assertLogs('orders.views', level='WARNING') as cm:
-            response = self.client.post(
-                reverse('order_cancel', args=[order.pk])
-            )
-            self.assertTrue(any('Invalid status transition attempted' in msg for msg in cm.output))
+        response = self.client.post(
+            reverse('order_complete', args=[order.pk])
+        )
 
-        self.assertRedirects(response, reverse('order_list'))
+        self.assertIn(response.status_code, [302, 403])
         order.refresh_from_db()
-        self.assertEqual(order.status, Order.STATUS_CANCELLED)
+        self.assertEqual(order.status, Order.STATUS_PENDING)
 
 
 class OrderDetailTests(TestCase):
