@@ -63,3 +63,51 @@ class RoleBasedLoginViewTests(TestCase):
         )
 
         self.assertNotIn("_auth_user_id", self.client.session)
+
+
+class ReportsAccessRestrictionTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username='admin_test',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.staff_user = User.objects.create_user(
+            username='staff_test',
+            password='password123',
+            role=getattr(User, 'ROLE_STAFF', 'STAFF'),
+        )
+        self.sales_rep_user = User.objects.create_user(
+            username='sales_test',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        self.reports_url = reverse('reports')
+
+    def test_admin_can_access_reports(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(self.reports_url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_staff_cannot_access_reports_returns_403(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get(self.reports_url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_sales_rep_cannot_access_reports_returns_403(self):
+        self.client.force_login(self.sales_rep_user)
+        response = self.client.get(self.reports_url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_user_redirected_to_login(self):
+        response = self.client.get(self.reports_url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_reports_nav_link_visible_only_for_admin(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(reverse('dashboard'))
+        self.assertContains(response, self.reports_url)
+
+        self.client.force_login(self.staff_user)
+        response = self.client.get(reverse('dashboard'))
+        self.assertNotContains(response, self.reports_url)
