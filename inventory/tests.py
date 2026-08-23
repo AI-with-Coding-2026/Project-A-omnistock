@@ -326,6 +326,24 @@ class SupplierFormTests(TestCase):
             'Enter a valid phone number.'
         )
 
+    def test_create_rejects_phone_without_digits(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse('supplier_create'),
+            self._valid_data(phone='---'),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            Supplier.objects.filter(email='new@example.com').exists()
+        )
+        self.assertFormError(
+            response.context['form'],
+            'phone',
+            'Enter a valid phone number.'
+        )
+        
     def test_edit_loads_existing_data(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse('supplier_edit', args=[self.existing.pk]))

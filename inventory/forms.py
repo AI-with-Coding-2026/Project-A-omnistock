@@ -14,7 +14,7 @@ class SupplierForm(forms.ModelForm):
         required=True,
         validators=[
             RegexValidator(
-                regex=r'^[0-9+\-\s()]+$',
+                regex=r'^(?=.*[0-9])[0-9+\-\s()]+$',
                 message='Enter a valid phone number.'
             )
         ],
