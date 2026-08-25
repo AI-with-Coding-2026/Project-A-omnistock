@@ -115,3 +115,4 @@ class ReportsAccessRestrictionTests(TestCase):
 
                 self.assertNotContains(response, ">Reports<", html=False)
                 self.assertNotContains(response, ">Invoices<", html=False)
+                self.assertNotContains(response, ">Executive Reports<", html=False)
