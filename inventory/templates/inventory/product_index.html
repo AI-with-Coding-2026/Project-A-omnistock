@@ -18,6 +18,11 @@
         </option>
         {% endfor %}
     </select>
+    <select name="stock_status">
+        <option value="">All stock statuses</option>
+        <option value="low" {% if selected_stock_status == 'low' %}selected{% endif %}>Low Stock</option>
+        <option value="in_stock" {% if selected_stock_status == 'in_stock' %}selected{% endif %}>In Stock</option>
+    </select>
     <input type="number" step="0.01" name="min_price" value="{{ min_price }}" placeholder="Min price">
     <input type="number" step="0.01" name="max_price" value="{{ max_price }}" placeholder="Max price">
     <button type="submit">Filter</button>
@@ -25,7 +30,7 @@
 <table class="table-auto w-full">
     <thead>
         <tr>
-            <th>SKU</th><th>Name</th><th>Supplier</th><th>Unit Price</th><th>Stock</th><th>Reorder Level</th>
+            <th>SKU</th><th>Name</th><th>Supplier</th><th>Unit Price</th><th>Stock</th><th>Reorder Level</th><th>Status</th>
         </tr>
     </thead>
     <tbody>
@@ -37,6 +42,13 @@
             <td>{{ p.unit_price }}</td>
             <td>{{ p.stock_quantity }}</td>
             <td>{{ p.reorder_level }}</td>
+            <td>
+                {% if p.is_low_stock %}
+                    <span class="rounded px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800">Low Stock</span>
+                {% else %}
+                    <span class="rounded px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">In Stock</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
