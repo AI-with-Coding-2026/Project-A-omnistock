@@ -1,0 +1,6 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" fill="none">
+  <rect x="0" y="4" width="32" height="32" rx="8" fill="#ffffff" fill-opacity="0.1"/>
+  <path d="M16 10l10 5.5v9L16 30l-10-5.5v-9L16 10z" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M16 10v9m0 0l10-5.5M16 19L6 13.5M16 19v11" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>
+  <text x="42" y="26" font-family="Inter, ui-sans-serif, system-ui" font-size="19" font-weight="700" fill="#ffffff">OmniStock</text>
+</svg>
