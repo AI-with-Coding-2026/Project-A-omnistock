@@ -203,7 +203,7 @@
                     Orders
                 </a>
 
-                {% if request.user.role == 'ADMIN' %}
+                {% if reports_ready and request.user.role == 'ADMIN' %}
                 <a href="{% url 'reports' %}"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
 
@@ -219,7 +219,7 @@
                 {% endif %}
 
 
-                {% if user.role == 'ADMIN' %}
+                {% if invoices_ready and request.user.role == 'ADMIN' %}
 
                 <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                               border-l-2 border-transparent text-slate-300
