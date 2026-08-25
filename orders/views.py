@@ -9,16 +9,57 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
-from core.utils import admin_required, staff_or_admin_required
+from core.utils import admin_or_sales_rep_required, admin_required, staff_or_admin_required
 from inventory.models import Product
 
-from .forms import OrderForm
-from .models import InvalidOrderTransitionError, Order, OrderItem
+from .forms import CustomerForm, OrderForm
+from .models import Customer, InvalidOrderTransitionError, Order, OrderItem
 from .pdf import render_html_to_pdf
 
 logger = logging.getLogger(__name__)
 
 ORDER_CANCEL_REDIRECT = 'order_list'
+
+
+
+@admin_or_sales_rep_required
+def customer_list(request):
+    customers = Customer.objects.all()
+    return render(request, 'orders/customer_list.html', {'customers': customers})
+
+
+@admin_or_sales_rep_required
+def customer_create(request):
+    form = CustomerForm(request.POST or None)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Customer created.')
+        return redirect('customer_list')
+    return render(request, 'orders/customer_form.html', {
+        'form': form,
+        'title': 'Create Customer',
+    })
+
+
+@admin_or_sales_rep_required
+def customer_update(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    form = CustomerForm(request.POST or None, instance=customer)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Customer updated.')
+        return redirect('customer_list')
+    return render(request, 'orders/customer_form.html', {
+        'form': form,
+        'title': 'Update Customer',
+    })
+
+
+@admin_or_sales_rep_required
+def customer_detail(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    return render(request, 'orders/customer_detail.html', {'customer': customer})
+
 
 
 @staff_or_admin_required
@@ -70,6 +111,7 @@ def order_create(request):
             'stock_quantity',
         )
     )
+    customers = list(Customer.objects.values('id', 'name', 'email'))
 
     form = OrderForm(request.POST or None)
 
@@ -111,6 +153,7 @@ def order_create(request):
                 'form': form,
                 'title': 'Create Order',
                 'products': products,
+                'customers': customers,
             })
 
         if not line_items:
@@ -122,6 +165,24 @@ def order_create(request):
                 'form': form,
                 'title': 'Create Order',
                 'products': products,
+                'customers': customers,
+            })
+
+        # ── Check customer selection is valid WITHOUT creating anything yet ──
+        new_customer_name = request.POST.get('new_customer_name', '').strip()
+        new_customer_email = request.POST.get('new_customer_email', '').strip()
+        existing_customer = form.cleaned_data.get('customer')
+
+        if not existing_customer and not (new_customer_name and new_customer_email):
+            form.add_error(
+                None,
+                'Select an existing customer or fill in the new customer details.',
+            )
+            return render(request, 'orders/order_form.html', {
+                'form': form,
+                'title': 'Create Order',
+                'products': products,
+                'customers': customers,
             })
 
         locked_products = {}
@@ -149,9 +210,23 @@ def order_create(request):
                 'form': form,
                 'title': 'Create Order',
                 'products': products,
+                'customers': customers,
             })
 
+        # ── All validation passed: now safe to create the Customer if needed ──
+        if existing_customer:
+            customer = existing_customer
+        else:
+            customer = Customer.objects.create(
+                name=new_customer_name,
+                email=new_customer_email,
+                phone=request.POST.get('new_customer_phone', '').strip(),
+                address=request.POST.get('new_customer_address', '').strip(),
+            )
+
         order = form.save(commit=False)
+        order.customer = customer
+        order.customer_name = customer.name
         order.user = request.user
         order.save()
 
@@ -185,9 +260,9 @@ def order_create(request):
         'form': form,
         'title': 'Create Order',
         'products': products,
+        'customers': customers,
     })
-
-
+    
 @staff_or_admin_required
 @require_POST
 @transaction.atomic

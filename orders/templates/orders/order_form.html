@@ -17,18 +17,58 @@
         {% endif %}
         <form method="post" class="space-y-6">
             {% csrf_token %}
-            {% for field in form %}
-                <div>
-                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.help_text %}
-                        <p class="mt-1 text-xs text-gray-500">{{ field.help_text }}</p>
-                    {% endif %}
-                    {% for error in field.errors %}
+
+            <div x-data="{ mode: 'existing' }" class="space-y-3">
+                <label class="block text-sm font-medium text-gray-700">Customer</label>
+
+                <div class="flex gap-2 text-sm">
+                    <button type="button" @click="mode = 'existing'"
+                            :class="mode === 'existing' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-700'"
+                            class="px-3 py-1.5 rounded-lg font-medium transition-colors">
+                        Select existing
+                    </button>
+                    <button type="button" @click="mode = 'new'"
+                            :class="mode === 'new' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-700'"
+                            class="px-3 py-1.5 rounded-lg font-medium transition-colors">
+                        + New customer
+                    </button>
+                </div>
+
+                <div x-show="mode === 'existing'">
+                    <select name="customer" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900">
+                        <option value="">Select a customer</option>
+                        {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }} ({{ customer.email }})</option>
+                        {% endfor %}
+                    </select>
+                    {% for error in form.customer.errors %}
                         <p class="mt-1 text-sm text-red-600">{{ error }}</p>
                     {% endfor %}
                 </div>
-            {% endfor %}
+
+                <div x-show="mode === 'new'" class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Name</label>
+                        <input type="text" name="new_customer_name" x-bind:required="mode === 'new'"
+                               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                        <input type="email" name="new_customer_email" x-bind:required="mode === 'new'"
+                               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                        <input type="text" name="new_customer_phone"
+                               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Address</label>
+                        <textarea name="new_customer_address" rows="2"
+                                  class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></textarea>
+                    </div>
+                </div>
+            </div>
 
             {{ products|json_script:"products-data" }}
 

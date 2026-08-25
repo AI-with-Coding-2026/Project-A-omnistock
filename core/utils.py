@@ -44,3 +44,18 @@ def staff_or_admin_required(view_func):
             'ADMIN', 'STAFF', 'INVENTORY_MANAGER', 'SALES_REP'
         ]
     )(view_func)
+
+
+
+def admin_or_sales_rep_required(view_func):
+    """
+    Decorator that allows both Admin and Sales Rep roles.
+    Used for Customer CRUD — Inventory Managers are blocked (403).
+    """
+    @login_required
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if getattr(request.user, 'role', None) not in ('ADMIN', 'SALES_REP'):
+            raise PermissionDenied
+        return view_func(request, *args, **kwargs)
+    return _wrapped

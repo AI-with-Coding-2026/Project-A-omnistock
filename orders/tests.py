@@ -10,7 +10,7 @@ from django.test import RequestFactory, Client, TestCase
 from django.urls import reverse, resolve
 
 from inventory.models import Product, Supplier
-from orders.models import InvalidOrderTransitionError, Invoice, Order, OrderItem
+from orders.models import Customer, InvalidOrderTransitionError, Invoice, Order, OrderItem
 from orders.pdf import render_html_to_pdf
 
 
@@ -24,6 +24,10 @@ class OrderCreateStockTests(TestCase):
             email='test@example.com',
             password='testpass123',
             role='SALES_REP',
+        )
+        self.customer = Customer.objects.create(
+            name='Test Customer',
+            email='customer@test.com',
         )
         self.supplier = Supplier.objects.create(
             name='Test Supplier',
@@ -47,16 +51,15 @@ class OrderCreateStockTests(TestCase):
             password='testpass123',
         )
 
-    def create_order(self, products, quantities, customer_name='Test Customer'):
+    def create_order(self, products, quantities, customer=None):
         return self.client.post(
             reverse('order_create'),
             {
-                'customer_name': customer_name,
+                'customer': (customer or self.customer).id,
                 'items[][product]': [str(product.id) for product in products],
                 'items[][quantity]': [str(quantity) for quantity in quantities],
             },
         )
-     
 
     def test_successful_stock_deduction(self):
         response = self.create_order([self.product_a], [10])
@@ -75,7 +78,6 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(item.quantity, 10)
         self.assertEqual(item.unit_price, Decimal('100.00'))
 
-
     def test_insufficient_stock_creates_no_order_or_stock_change(self):
         response = self.create_order([self.product_a], [100])
 
@@ -86,7 +88,6 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-
 
     def test_multiple_products_deduct_stock_correctly(self):
         response = self.create_order(
@@ -107,13 +108,10 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(order.total_amount, Decimal('2252.50'))
         self.assertEqual(OrderItem.objects.filter(order=order).count(), 2)
 
-
-
     def test_duplicate_product_rows_combined_quantity_exceeds_stock(self):
         response = self.create_order(
             [self.product_a, self.product_a],
             [30, 30],
-            customer_name='Duplicate Overflow',
         )
 
         self.assertEqual(response.status_code, 200)
@@ -124,13 +122,10 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(self.product_a.stock_quantity, 50)
 
-  
-
     def test_duplicate_product_rows_combined_quantity_within_stock_succeeds(self):
         response = self.create_order(
             [self.product_a, self.product_a],
             [10, 15],
-            customer_name='Duplicate Valid',
         )
 
         self.assertRedirects(response, reverse('order_list'))
@@ -139,7 +134,7 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(self.product_a.stock_quantity, 25)
 
-        order = Order.objects.get(customer_name='Duplicate Valid')
+        order = Order.objects.get(customer=self.customer)
 
         self.assertEqual(order.total_amount, Decimal('2500.00'))
 
@@ -148,7 +143,6 @@ class OrderCreateStockTests(TestCase):
             product=self.product_a,
         )
 
-        
         self.assertEqual(items.count(), 2)
 
         quantities = list(
@@ -160,12 +154,10 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(quantities, [10, 15])
 
-
     def test_duplicate_product_overflow_rolls_back_entire_order(self):
         response = self.create_order(
             [self.product_a, self.product_a, self.product_b],
             [30, 30, 5],
-            customer_name='Mixed Overflow',
         )
 
         self.assertEqual(response.status_code, 200)
@@ -178,8 +170,6 @@ class OrderCreateStockTests(TestCase):
         self.assertEqual(self.product_a.stock_quantity, 50)
         self.assertEqual(self.product_b.stock_quantity, 30)
 
-
-
     def test_zero_quantity_is_rejected(self):
         response = self.create_order([self.product_a], [0])
 
@@ -189,7 +179,6 @@ class OrderCreateStockTests(TestCase):
         self.product_a.refresh_from_db()
 
         self.assertEqual(self.product_a.stock_quantity, 50)
-
 
     def test_negative_quantity_is_rejected(self):
         response = self.create_order([self.product_a], [-5])
@@ -201,12 +190,11 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(self.product_a.stock_quantity, 50)
 
-
     def test_non_numeric_quantity_is_rejected(self):
         response = self.client.post(
             reverse('order_create'),
             {
-                'customer_name': 'Invalid Quantity',
+                'customer': self.customer.id,
                 'items[][product]': [str(self.product_a.id)],
                 'items[][quantity]': ['abc'],
             },
@@ -219,12 +207,11 @@ class OrderCreateStockTests(TestCase):
 
         self.assertEqual(self.product_a.stock_quantity, 50)
 
-
     def test_no_line_items_are_rejected(self):
         response = self.client.post(
             reverse('order_create'),
             {
-                'customer_name': 'No Items',
+                'customer': self.customer.id,
             },
         )
 
@@ -239,6 +226,10 @@ class OrderItemCreationTests(TestCase):
             email='test@example.com',
             password='testpass123',
             role='SALES_REP',
+        )
+        self.customer = Customer.objects.create(
+            name='Item Test Customer',
+            email='itemtest@example.com',
         )
         self.supplier = Supplier.objects.create(
             name='Test Supplier',
@@ -269,7 +260,7 @@ class OrderItemCreationTests(TestCase):
         response = self.client.post(
             reverse('order_create'),
             {
-                'customer_name': 'John Doe',
+                'customer': self.customer.id,
                 'items[][product]': [
                     str(self.product_a.id),
                     str(self.product_b.id),
@@ -281,7 +272,7 @@ class OrderItemCreationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('order_list'))
 
-        order = Order.objects.get(customer_name='John Doe')
+        order = Order.objects.get(customer=self.customer)
 
         self.assertEqual(order.total_amount, Decimal('951.50'))
         self.assertEqual(order.items.count(), 2)
@@ -307,7 +298,7 @@ class OrderItemCreationTests(TestCase):
         response = self.client.post(
             reverse('order_create'),
             {
-                'customer_name': 'Jane Doe',
+                'customer': self.customer.id,
                 'items[][product]': [str(self.product_a.id)],
                 'items[][quantity]': ['1'],
                 'items[][unit_price]': ['1.00'],
@@ -332,33 +323,27 @@ class OrderItemCreationTests(TestCase):
         response = self.client.post(
             reverse('order_create'),
             {
-                'customer_name': 'Test Zero',
+                'customer': self.customer.id,
                 'items[][product]': [str(self.product_a.id)],
                 'items[][quantity]': ['0'],
             },
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            Order.objects.filter(customer_name='Test Zero').count(),
-            0,
-        )
+        self.assertEqual(Order.objects.count(), 0)
         self.assertEqual(OrderItem.objects.count(), 0)
 
         response = self.client.post(
             reverse('order_create'),
             {
-                'customer_name': 'Test Negative',
+                'customer': self.customer.id,
                 'items[][product]': [str(self.product_a.id)],
                 'items[][quantity]': ['-5'],
             },
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            Order.objects.filter(customer_name='Test Negative').count(),
-            0,
-        )
+        self.assertEqual(Order.objects.count(), 0)
         self.assertEqual(OrderItem.objects.count(), 0)
 
     def test_rejects_order_with_no_items(self):
@@ -367,30 +352,24 @@ class OrderItemCreationTests(TestCase):
         response = self.client.post(
             reverse('order_create'),
             {
-                'customer_name': 'No Items',
+                'customer': self.customer.id,
                 'items[][product]': [''],
                 'items[][quantity]': [''],
             },
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            Order.objects.filter(customer_name='No Items').count(),
-            0,
-        )
+        self.assertEqual(Order.objects.count(), 0)
 
         response = self.client.post(
             reverse('order_create'),
             {
-                'customer_name': 'Missing Items',
+                'customer': self.customer.id,
             },
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            Order.objects.filter(customer_name='Missing Items').count(),
-            0,
-        )
+        self.assertEqual(Order.objects.count(), 0)
 
     def test_invalid_product_id_no_partial_order(self):
         self.login()
@@ -401,7 +380,7 @@ class OrderItemCreationTests(TestCase):
         response = self.client.post(
             reverse('order_create'),
             {
-                'customer_name': 'Invalid Product',
+                'customer': self.customer.id,
                 'items[][product]': [
                     str(self.product_a.id),
                     '99999',
@@ -511,7 +490,6 @@ class OrderCancellationTests(TestCase):
             quantity=2,
             unit_price=Decimal('50.00'),
         )
-        # Simulate stock deduction from order_create path
         Product.objects.filter(pk=self.product.pk).update(
             stock_quantity=F('stock_quantity') - 2,
         )
@@ -530,6 +508,7 @@ class OrderCancellationTests(TestCase):
 
         self.assertEqual(order.status, Order.STATUS_CANCELLED)
         self.assertEqual(self.product.stock_quantity, 8)
+
 
 class OrderStateMachineModelTests(TestCase):
     def setUp(self):
@@ -896,7 +875,6 @@ class OrderDetailTests(TestCase):
         self.assertContains(response, 'Detail Product')
         self.assertContains(response, '25.00')
 
-
     def test_cancelled_order_displays_red_status_badge(self):
         self.order.status = Order.STATUS_CANCELLED
         self.order.save()
@@ -925,7 +903,6 @@ class OrderDetailTests(TestCase):
         self.assertContains(response, 'Completed')
         self.assertContains(response, 'bg-green-100')
 
-
     def test_order_detail_displays_multiple_line_items(self):
         second_product = Product.objects.create(
             supplier=self.supplier,
@@ -952,7 +929,6 @@ class OrderDetailTests(TestCase):
         self.assertContains(response, '2')
         self.assertContains(response, '3')
 
-
     def test_order_detail_shows_empty_state_when_no_items_exist(self):
         empty_order = Order.objects.create(
             user=self.user,
@@ -973,7 +949,6 @@ class OrderDetailTests(TestCase):
             'No line items found for this order.',
         )
 
-
     def test_order_detail_returns_404_for_missing_order(self):
         self.client.force_login(self.user)
 
@@ -982,7 +957,6 @@ class OrderDetailTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
-
 
     def test_user_without_an_allowed_role_is_redirected(self):
         unauthorized_user = User.objects.create_user(
@@ -1388,3 +1362,205 @@ class OrderCancellationIdempotencyTests(TestCase):
         self.assertEqual(order.status, Order.STATUS_CANCELLED)
         self.assertEqual(self.product_a.stock_quantity, initial_stock_a + 4)
         self.assertEqual(self.product_b.stock_quantity, initial_stock_b + 1)
+
+class CustomerCRUDTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='cust_admin',
+            password='password123',
+            role='ADMIN',
+        )
+        self.sales_rep = User.objects.create_user(
+            username='cust_sales_rep',
+            password='password123',
+            role='SALES_REP',
+        )
+        self.inventory_manager = User.objects.create_user(
+            username='cust_inv_mgr',
+            password='password123',
+            role='INVENTORY_MANAGER',
+        )
+        self.existing = Customer.objects.create(
+            name='Existing Customer',
+            email='existing@example.com',
+            phone='555-0100',
+        )
+
+    def test_admin_can_list_customers(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('customer_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Existing Customer')
+
+    def test_sales_rep_can_list_customers(self):
+        self.client.force_login(self.sales_rep)
+        response = self.client.get(reverse('customer_list'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_inventory_manager_cannot_list_customers(self):
+        self.client.force_login(self.inventory_manager)
+        response = self.client.get(reverse('customer_list'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_sales_rep_can_create_customer(self):
+        self.client.force_login(self.sales_rep)
+        response = self.client.post(reverse('customer_create'), {
+            'name': 'New Customer',
+            'email': 'new@example.com',
+            'phone': '555-0200',
+            'address': '123 Main St',
+        })
+        self.assertRedirects(response, reverse('customer_list'))
+        self.assertTrue(Customer.objects.filter(email='new@example.com').exists())
+
+    def test_inventory_manager_cannot_create_customer(self):
+        self.client.force_login(self.inventory_manager)
+        response = self.client.get(reverse('customer_create'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_sales_rep_can_edit_customer(self):
+        self.client.force_login(self.sales_rep)
+        response = self.client.post(
+            reverse('customer_update', args=[self.existing.pk]),
+            {
+                'name': 'Updated Name',
+                'email': 'existing@example.com',
+                'phone': '555-9999',
+                'address': '',
+            },
+        )
+        self.assertRedirects(response, reverse('customer_list'))
+        self.existing.refresh_from_db()
+        self.assertEqual(self.existing.name, 'Updated Name')
+
+    def test_inventory_manager_cannot_edit_customer(self):
+        self.client.force_login(self.inventory_manager)
+        response = self.client.get(reverse('customer_update', args=[self.existing.pk]))
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_view_customer_detail(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('customer_detail', args=[self.existing.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Existing Customer')
+
+    def test_inventory_manager_cannot_view_customer_detail(self):
+        self.client.force_login(self.inventory_manager)
+        response = self.client.get(reverse('customer_detail', args=[self.existing.pk]))
+        self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_redirected_to_login(self):
+        response = self.client.get(reverse('customer_list'))
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('customer_list')}",
+        )
+
+
+class OrderCustomerIntegrationTests(TestCase):
+    def setUp(self):
+        self.sales_rep = User.objects.create_user(
+            username='order_cust_rep',
+            password='password123',
+            role='SALES_REP',
+        )
+        self.supplier = Supplier.objects.create(
+            name='Order Cust Supplier',
+            email='ordercustsupplier@example.com',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='Order Cust Product',
+            unit_price=Decimal('20.00'),
+            stock_quantity=50,
+        )
+        self.existing_customer = Customer.objects.create(
+            name='Picked Customer',
+            email='picked@example.com',
+        )
+        self.client.force_login(self.sales_rep)
+
+    def test_order_created_with_existing_customer_sets_fk_and_snapshot(self):
+        response = self.client.post(reverse('order_create'), {
+            'customer': self.existing_customer.id,
+            'items[][product]': [str(self.product.id)],
+            'items[][quantity]': ['2'],
+        })
+
+        self.assertRedirects(response, reverse('order_list'))
+
+        order = Order.objects.latest('id')
+        self.assertEqual(order.customer, self.existing_customer)
+        self.assertEqual(order.customer_name, 'Picked Customer')
+
+    def test_order_created_with_inline_new_customer_creates_customer_and_order(self):
+        response = self.client.post(reverse('order_create'), {
+            'new_customer_name': 'Inline Customer',
+            'new_customer_email': 'inline@example.com',
+            'new_customer_phone': '555-1234',
+            'new_customer_address': '456 Oak Ave',
+            'items[][product]': [str(self.product.id)],
+            'items[][quantity]': ['1'],
+        })
+
+        self.assertRedirects(response, reverse('order_list'))
+
+        new_customer = Customer.objects.get(email='inline@example.com')
+        self.assertEqual(new_customer.name, 'Inline Customer')
+        self.assertEqual(new_customer.phone, '555-1234')
+
+        order = Order.objects.latest('id')
+        self.assertEqual(order.customer, new_customer)
+        self.assertEqual(order.customer_name, 'Inline Customer')
+
+    def test_order_without_customer_selection_or_inline_data_is_rejected(self):
+        initial_count = Order.objects.count()
+        response = self.client.post(reverse('order_create'), {
+            'items[][product]': [str(self.product.id)],
+            'items[][quantity]': ['1'],
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Order.objects.count(), initial_count)
+
+    def test_inline_customer_not_created_if_order_validation_fails(self):
+        """
+        Per mentor's instruction: inline Customer creation and Order creation
+        must be atomic. If line-item validation fails, no orphaned Customer
+        should be created.
+        """
+        initial_customer_count = Customer.objects.count()
+
+        response = self.client.post(reverse('order_create'), {
+            'new_customer_name': 'Orphan Test',
+            'new_customer_email': 'orphan@example.com',
+            'items[][product]': [str(self.product.id)],
+            'items[][quantity]': ['9999'],  # exceeds stock
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Customer.objects.count(), initial_customer_count)
+        self.assertFalse(Customer.objects.filter(email='orphan@example.com').exists())
+
+    def test_customer_name_snapshot_does_not_change_when_customer_renamed_later(self):
+        """
+        Per mentor's instruction: customer_name is a point-in-time snapshot,
+        not a live mirror of Customer.name.
+        """
+        response = self.client.post(reverse('order_create'), {
+            'customer': self.existing_customer.id,
+            'items[][product]': [str(self.product.id)],
+            'items[][quantity]': ['1'],
+        })
+        self.assertRedirects(response, reverse('order_list'))
+
+        order = Order.objects.latest('id')
+        self.assertEqual(order.customer_name, 'Picked Customer')
+
+        # Rename the customer after the order was placed
+        self.existing_customer.name = 'Renamed Later'
+        self.existing_customer.save()
+
+        order.refresh_from_db()
+        self.assertEqual(order.customer_name, 'Picked Customer')  # unchanged
+        self.assertEqual(order.customer.name, 'Renamed Later')  # FK reflects live data
