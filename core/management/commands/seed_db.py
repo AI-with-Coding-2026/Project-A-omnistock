@@ -1,7 +1,8 @@
 from datetime import timedelta
 from decimal import Decimal
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from faker import Faker
@@ -17,7 +18,20 @@ class Command(BaseCommand):
 
     DEMO_PASSWORD = "demo12345"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Allow seeding when DEBUG=False.",
+        )
+
     def handle(self, *args, **options):
+        if not settings.DEBUG and not options["force"]:
+            raise CommandError(
+                "seed_db is only available when DEBUG=True. "
+                "Use --force if you really want to run it."
+            )
+            
         fake = Faker()
         Faker.seed(20260825)
 
@@ -167,6 +181,7 @@ class Command(BaseCommand):
 
     def seed_orders(self, fake, users, products):
         orders = []
+
         statuses = [
             Order.STATUS_PENDING,
             Order.STATUS_COMPLETED,
@@ -175,16 +190,26 @@ class Command(BaseCommand):
 
         for number in range(1, 31):
             status = statuses[(number - 1) % len(statuses)]
+            order_number = f"DEMO-ORD-{number:04d}"
 
-            order, _ = Order.objects.update_or_create(
-                order_number=f"DEMO-ORD-{number:04d}",
-                defaults={
-                    "user": users[(number - 1) % len(users)],
-                    "customer_name": fake.name(),
-                    "status": status,
-                    "total_amount": Decimal("0.00"),
-                },
-            )
+            order = Order.objects.filter(order_number=order_number).first()
+
+            if order is None:
+                order = Order.objects.create(
+                    order_number=order_number,
+                    user=users[(number - 1) % len(users)],
+                    customer_name=fake.name(),
+                    status=status,
+                    total_amount=Decimal("0.00"),
+                )
+            else:
+                Order.objects.filter(pk=order.pk).update(
+                    user=users[(number - 1) % len(users)],
+                    customer_name=fake.name(),
+                    status=status,
+                    total_amount=Decimal("0.00"),
+                )
+                order.refresh_from_db()
 
             # These are only demo orders identified by DEMO-ORD-xxxx.
             # Replacing their items keeps reruns idempotent.
