@@ -13,7 +13,6 @@ import pymysql
 pymysql.install_as_MySQLdb()
 from pathlib import Path
 from decouple import config
-print("DB_NAME from config:", config('DB_NAME', default='NOT SET'))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,17 +22,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!derh9#qen0ojn!dqa#@lg=$%)r_zt**o0!kw1qo92)a)oi8yv'
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-!derh9#qen0ojn!dqa#@lg=$%)r_zt**o0!kw1qo92)a)oi8yv')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'core',
+    'inventory',
+    'orders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -57,13 +59,14 @@ ROOT_URLCONF = 'omnistock.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                "core.context_processors.feature_flags",
             ],
         },
     },
@@ -80,7 +83,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': config('DB_NAME', default='omnistock'),
         'USER': config('DB_USER', default='root'),
-        'PASSWORD': config('DB_PASSWORD', default='H@yper1202'),  # your MySQL password
+        'PASSWORD': config('DB_PASSWORD', default=''),
         'HOST': 'localhost',
         'PORT': '3306',
     }
@@ -88,6 +91,8 @@ DATABASES = {
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
+
+AUTH_USER_MODEL = 'core.User'
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -115,6 +120,10 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/login/'
 
 
 # Static files (CSS, JavaScript, Images)

@@ -1,4 +1,37 @@
-venv/
-.env
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# Django
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+
+# IDEs
+.vscode/
+.idea/
+.cursor/
+.claude/
+
+# OS
+.DS_Store
+
+# Personal documentation (Rostel)
+FINAL_CHECKLIST.md
+REQUIREMENTS_VERIFICATION.md
+TESTING_GUIDE.md
+supplier-management-rostel-summary.md
+supplier-management-create-edit.md
+fix_migrations.md
+hello.bat
+GIT_WORKFLOW.md
