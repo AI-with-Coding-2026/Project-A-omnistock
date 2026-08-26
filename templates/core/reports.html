@@ -1,0 +1,53 @@
+{% extends "core/base.html" %}
+
+{% block title %}{{ title }} - OmniStock{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div>
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900">{{ title }}</h2>
+        <p class="mt-1.5 text-gray-500">{{ description }}</p>
+    </div>
+
+    <!-- Top 5 Selling Products -->
+    <section class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="p-6 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-900">Top 5 Selling Products</h2>
+            <p class="text-sm text-gray-500 mt-0.5">Best performing products by quantity sold.</p>
+        </div>
+        <div class="p-6">
+            {% if top_products %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-gray-600 uppercase tracking-wider">
+                            <tr>
+                                <th class="px-4 py-3 font-medium rounded-tl-lg">Product Name</th>
+                                <th class="px-4 py-3 font-medium rounded-tr-lg text-right">Total Quantity Sold</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for item in top_products %}
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-gray-900">{{ item.product__name }}</td>
+                                    <td class="px-4 py-3 text-right text-gray-700">{{ item.total_qty }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="flex items-center gap-2 text-gray-500 bg-gray-50 border border-gray-100 rounded-lg p-4 text-sm">
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M10 3v14M6 7c0-1.5 1.5-2.5 4-2.5s4 1 4 2.5-1.5 2-4 2.5-4 1-4 2.5 1.5 2.5 4 2.5 4-1 4-2.5"/>
+                    </svg>
+                    No sales data available yet.
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+</div>
+{% endblock %}
