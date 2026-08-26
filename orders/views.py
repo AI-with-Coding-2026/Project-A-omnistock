@@ -23,19 +23,6 @@ logger = logging.getLogger(__name__)
 ORDER_CANCEL_REDIRECT = 'order_list'
 
 
-@admin_required
-def reports(request):
-    monthly_revenue = (
-        Order.objects.filter(status=Order.STATUS_COMPLETED)
-        .annotate(month=TruncMonth('created_at'))
-        .values('month')
-        .annotate(total=Sum('total_amount'))
-        .order_by('month')
-    )
-    return render(request, 'reports/reports.html', {
-        'monthly_revenue': monthly_revenue,
-    })
-
 
 @admin_required
 def export_orders_csv(request):

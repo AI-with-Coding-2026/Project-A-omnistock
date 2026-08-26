@@ -1440,7 +1440,7 @@ class ReportsAndExportTests(TestCase):
         response = self.client.get(reverse('reports'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'reports/reports.html')
+        self.assertTemplateUsed(response, 'core/reports.html')
         revenue = list(response.context['monthly_revenue'])
         self.assertEqual(len(revenue), 2)
         self.assertEqual(revenue[0]['month'].month, 1)

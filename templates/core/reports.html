@@ -1,53 +1,85 @@
-{% extends "core/base.html" %}
-
-{% block title %}{{ title }} - OmniStock{% endblock %}
-{% block page_title %}{{ title }}{% endblock %}
+{% extends 'core/base.html' %}
 
 {% block content %}
-<div class="space-y-8">
-
-    <!-- Header -->
-    <div>
-        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900">{{ title }}</h2>
-        <p class="mt-1.5 text-gray-500">{{ description }}</p>
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900">{{ title|default:"Executive Reports" }}</h2>
+            <p class="mt-1 text-sm text-gray-500">Reports and analytics overview.</p>
+        </div>
+        {% if request.user.role == 'ADMIN' %}
+        <a href="{% url 'export_orders_csv' %}"
+           class="inline-flex items-center justify-center gap-1.5 bg-white border border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors shadow-sm">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            Export Orders CSV
+        </a>
+        {% endif %}
     </div>
 
-    <!-- Top 5 Selling Products -->
-    <section class="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div class="p-6 border-b border-gray-100">
-            <h2 class="text-lg font-semibold text-gray-900">Top 5 Selling Products</h2>
-            <p class="text-sm text-gray-500 mt-0.5">Best performing products by quantity sold.</p>
-        </div>
-        <div class="p-6">
-            {% if top_products %}
+    <!-- Monthly Revenue Table -->
+    <div class="mt-8">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Monthly Revenue</h3>
+        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            {% if monthly_revenue %}
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 text-gray-600 uppercase tracking-wider">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
-                                <th class="px-4 py-3 font-medium rounded-tl-lg">Product Name</th>
-                                <th class="px-4 py-3 font-medium rounded-tr-lg text-right">Total Quantity Sold</th>
+                                <th class="px-6 py-4 font-semibold text-gray-600">Month</th>
+                                <th class="px-6 py-4 font-semibold text-gray-600 text-right">Total Revenue</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                            {% for item in top_products %}
-                                <tr class="hover:bg-gray-50 transition-colors">
-                                    <td class="px-4 py-3 font-medium text-gray-900">{{ item.product__name }}</td>
-                                    <td class="px-4 py-3 text-right text-gray-700">{{ item.total_qty }}</td>
+                            {% for entry in monthly_revenue %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 text-gray-700">{{ entry.month|date:"F Y" }}</td>
+                                    <td class="px-6 py-4 font-semibold text-gray-900 text-right">${{ entry.total|floatformat:2 }}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             {% else %}
-                <div class="flex items-center gap-2 text-gray-500 bg-gray-50 border border-gray-100 rounded-lg p-4 text-sm">
-                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-                        <path d="M10 3v14M6 7c0-1.5 1.5-2.5 4-2.5s4 1 4 2.5-1.5 2-4 2.5-4 1-4 2.5 1.5 2.5 4 2.5 4-1 4-2.5"/>
-                    </svg>
-                    No sales data available yet.
+                <div class="px-6 py-16 text-center">
+                    <h3 class="text-lg font-semibold text-gray-900">No revenue data</h3>
+                    <p class="mt-1 text-sm text-gray-500">Completed orders will appear here.</p>
                 </div>
             {% endif %}
         </div>
-    </section>
+    </div>
 
+    <!-- Top 5 Products Table -->
+    <div class="mt-8">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Top 5 Selling Products</h3>
+        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            {% if top_products %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-4 font-semibold text-gray-600">Product Name</th>
+                                <th class="px-6 py-4 font-semibold text-gray-600 text-right">Total Quantity Sold</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for product in top_products %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 text-gray-700">{{ product.product__name }}</td>
+                                    <td class="px-6 py-4 font-semibold text-gray-900 text-right">{{ product.total_qty }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="px-6 py-16 text-center">
+                    <h3 class="text-lg font-semibold text-gray-900">No product data</h3>
+                    <p class="mt-1 text-sm text-gray-500">Sold products will appear here.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endblock %}
