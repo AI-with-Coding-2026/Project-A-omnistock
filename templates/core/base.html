@@ -81,12 +81,9 @@
                    transition-transform duration-200 ease-out
                    print:hidden">
 
-            <div class="flex h-[60px] items-center gap-3 border-b border-slate-800 px-6">
-                <div class="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center font-bold text-sm">
-                    O
-                </div>
-                <span class="text-lg font-semibold tracking-tight">OmniStock</span>
-            </div>
+        <div class="flex h-[60px] items-center px-6 border-b border-slate-800">
+            <img src="{% static 'core/logo.svg' %}" alt="OmniStock Logo" class="h-8 w-auto">
+        </div>
 
             <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
 
@@ -340,11 +337,8 @@
     <div class="min-h-screen flex flex-col">
 
         <header class="bg-slate-900 text-white px-8 py-5">
-            <div class="max-w-7xl mx-auto flex items-center gap-3">
-                <div class="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center font-bold text-sm">
-                    O
-                </div>
-                <span class="text-2xl font-semibold tracking-tight">OmniStock</span>
+            <div class="max-w-7xl mx-auto flex items-center">
+                <img src="{% static 'core/logo.svg' %}" alt="OmniStock Logo" class="h-10 w-auto">
             </div>
         </header>
 
