@@ -3,14 +3,13 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-
     <h1>{{ title }}</h1>
     
     <section class="dashboard-metrics">
-        <div class="card">Products: {{ product_count }}</div>
-        <div class="card">Low Stock: {{ low_stock_count }}</div>
-        <div class="card">Suppliers: {{ supplier_count }}</div>
-        <div class="card">Revenue: {{ total_revenue }}</div>
+        <div class="metric-card">Products: {{ product_count }}</div>
+        <div class="metric-card">Low Stock: {{ low_stock_count }}</div>
+        <div class="metric-card">Suppliers: {{ supplier_count }}</div>
+        <div class="metric-card">Revenue: {{ total_revenue }}</div>
     </section>
 
     <p>Logged in as: <strong>{{ user.username }}</strong> ({{ user.role }})</p>

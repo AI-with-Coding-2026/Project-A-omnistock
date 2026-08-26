@@ -8,18 +8,18 @@
         {% csrf_token %}
         {{ form.as_p }}
         
-        <p id="stock-error" style="color: red; display: none; margin-top: 5px;"></p>
+        <p id="stock-error" style="color: #dc2626; display: none; margin-top: 5px; font-size: 0.875rem; font-weight: 500;"></p>
 
         <button type="submit" id="submit-btn">Save</button>
     </form>
-    <p><a href="{% url 'order_list' %}">Back to Orders</a></p>
+    <p style="margin-top: 1rem;"><a href="{% url 'order_list' %}">← Back to Orders</a></p>
 
     <!-- Safely output the JSON string into an HTML script element -->
     {{ stock_map_json|json_script:"stock-map-data" }}
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // 1. Safely parse JSON from the script element (clears JS syntax errors)
+            // 1. Safely parse JSON from the script element
             const stockMapContainer = document.getElementById('stock-map-data');
             const stockMap = stockMapContainer ? JSON.parse(stockMapContainer.textContent) : {};
 
@@ -56,6 +56,6 @@
                 productSelect.addEventListener('change', validateStock);
                 quantityInput.addEventListener('input', validateStock);
             }
-        });km
+        });
     </script>
 {% endblock %}
