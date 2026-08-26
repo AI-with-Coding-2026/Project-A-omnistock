@@ -6,9 +6,10 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from orders.models import Order, OrderItem
 from .models import InvalidPurchaseOrderTransitionError, Product, PurchaseOrder, PurchaseOrderItem, Supplier
-
 from django.db import IntegrityError, transaction
 from unittest.mock import patch
+from .forms import ProductForm
+
 
 User = get_user_model()
 
@@ -1162,6 +1163,7 @@ class PurchaseOrderListViewTests(TestCase):
         response = self.client.get(reverse('purchase_order_list'))
         self.assertEqual(response.status_code, 200)
 
+
 class SupplierPortalPOResponseTests(TestCase):
     def setUp(self):
         self.supplier_a = Supplier.objects.create(
@@ -1830,3 +1832,82 @@ class SupplierAdvancedFilterTests(TestCase):
         suppliers = list(response.context["suppliers"])
 
         self.assertEqual(suppliers, [])
+
+class ProductPriceValidationTests(TestCase):
+
+    def setUp(self):
+        self.supplier = Supplier.objects.create(
+            name="Test Supplier",
+            email="supplier@test.com",
+            phone="123456789"
+        )
+
+    def test_form_rejects_negative_price(self):
+        form = ProductForm(data={
+            "supplier": self.supplier.id,
+            "name": "Keyboard",
+            "unit_price": "-15.00",
+            "stock_quantity": 10,
+            "reorder_level": 5,
+        })
+
+        self.assertFalse(form.is_valid())
+        self.assertIn(
+            "Unit price must be greater than 0.",
+            form.errors["unit_price"]
+        )
+
+    def test_form_rejects_zero_price(self):
+        form = ProductForm(data={
+            "supplier": self.supplier.id,
+            "name": "Keyboard",
+            "unit_price": "0.00",
+            "stock_quantity": 10,
+            "reorder_level": 5,
+        })
+
+        self.assertFalse(form.is_valid())
+        self.assertIn(
+            "Unit price must be greater than 0.",
+            form.errors["unit_price"]
+        )
+
+    def test_form_accepts_positive_price(self):
+        form = ProductForm(data={
+            "supplier": self.supplier.id,
+            "name": "Keyboard",
+            "unit_price": "15.00",
+            "stock_quantity": 10,
+            "reorder_level": 5,
+        })
+
+        self.assertTrue(form.is_valid())
+
+        product = form.save()
+
+        self.assertEqual(product.unit_price, Decimal("15.00"))
+
+    def test_model_rejects_negative_price(self):
+        product = Product(
+            supplier=self.supplier,
+            name="Mouse",
+            unit_price=Decimal("-5.00"),
+            stock_quantity=5,
+            reorder_level=1,
+        )
+
+        with self.assertRaises(ValidationError):
+            product.full_clean()
+
+    def test_model_rejects_zero_price(self):
+        product = Product(
+            supplier=self.supplier,
+            name="Mouse",
+            unit_price=Decimal("0.00"),
+            stock_quantity=5,
+            reorder_level=1,
+        )
+
+        with self.assertRaises(ValidationError):
+            product.full_clean()
+

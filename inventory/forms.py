@@ -27,15 +27,32 @@ class SupplierForm(forms.ModelForm):
         model = Supplier
         fields = ['name', 'email', 'phone', 'address']
 
-
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['supplier', 'name', 'unit_price', 'stock_quantity', 'reorder_level']
-
+        fields = [
+            'supplier',
+            'name',
+            'unit_price',
+            'stock_quantity',
+            'reorder_level',
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         for field in self.fields.values():
             existing = field.widget.attrs.get("class", "")
-            field.widget.attrs["class"] = (existing + " " + BASE_INPUT).strip()
+            field.widget.attrs["class"] = (
+                existing + " " + BASE_INPUT
+            ).strip()
+
+    def clean_unit_price(self):
+        unit_price = self.cleaned_data.get("unit_price")
+
+        if unit_price is None or unit_price <= 0:
+            raise forms.ValidationError(
+                "Unit price must be greater than 0."
+            )
+
+        return unit_price
