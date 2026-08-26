@@ -45,7 +45,16 @@ def product_index(request):
     supplier_id = request.GET.get('supplier')
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
-    products = Product.objects.select_related('supplier').all()
+    products = Product.objects.select_related('supplier').annotate(
+        is_low_stock=Case(
+            When(
+                stock_quantity__lte=F('reorder_level'),
+                then=Value(True)
+            ),
+            default=Value(False),
+            output_field=BooleanField(),
+        )
+    )
     if q:
         products = products.filter(
             Q(name__icontains=q) | Q(sku__icontains=q))
@@ -63,6 +72,13 @@ def product_index(request):
         except ValueError:
             messages.error(request, 'Max price must be a number.')
             max_price = ''
+
+    stock_status = request.GET.get('stock_status', '')
+    if stock_status == 'low':
+        products = products.filter(is_low_stock=True)
+    elif stock_status == 'in_stock':
+        products = products.filter(is_low_stock=False)
+
     suppliers = Supplier.objects.all()
 
     paginator = Paginator(products, 20)
@@ -81,6 +97,7 @@ def product_index(request):
         'selected_supplier': supplier_id,
         'min_price': min_price,
         'max_price': max_price,
+        'selected_stock_status': stock_status,
         'querystring': querystring,
     })
 
