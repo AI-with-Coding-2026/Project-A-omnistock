@@ -1,3 +1,6 @@
+import csv
+import io
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -6,8 +9,9 @@ from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.db.models import F
 from django.template.loader import render_to_string
-from django.test import RequestFactory, Client, TestCase
-from django.urls import reverse, resolve
+from django.test import Client, RequestFactory, TestCase
+from django.urls import resolve, reverse
+from django.utils import timezone
 
 from inventory.models import Product, Supplier
 from orders.models import InvalidOrderTransitionError, Invoice, Order, OrderItem
@@ -1388,3 +1392,65 @@ class OrderCancellationIdempotencyTests(TestCase):
         self.assertEqual(order.status, Order.STATUS_CANCELLED)
         self.assertEqual(self.product_a.stock_quantity, initial_stock_a + 4)
         self.assertEqual(self.product_b.stock_quantity, initial_stock_b + 1)
+
+
+class ReportsAndExportTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='reports_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.sales_rep = User.objects.create_user(
+            username='reports_sales_rep',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        self.january_order = self.create_order(
+            'January Customer', Decimal('125.50'), Order.STATUS_COMPLETED,
+            datetime(2026, 1, 15, tzinfo=timezone.get_current_timezone()),
+        )
+        self.january_order_two = self.create_order(
+            'Second January Customer', Decimal('74.50'), Order.STATUS_COMPLETED,
+            datetime(2026, 1, 28, tzinfo=timezone.get_current_timezone()),
+        )
+        self.february_order = self.create_order(
+            'February Customer', Decimal('300.00'), Order.STATUS_COMPLETED,
+            datetime(2026, 2, 10, tzinfo=timezone.get_current_timezone()),
+        )
+        self.pending_order = self.create_order(
+            'Pending Customer', Decimal('999.00'), Order.STATUS_PENDING,
+            datetime(2026, 1, 20, tzinfo=timezone.get_current_timezone()),
+        )
+
+    def create_order(self, customer, total, status, created_at):
+        order = Order.objects.create(
+            user=self.sales_rep,
+            customer_name=customer,
+            total_amount=total,
+            status=status,
+        )
+        Order.objects.filter(pk=order.pk).update(created_at=created_at)
+        order.refresh_from_db()
+        return order
+
+    def test_admin_sees_completed_revenue_grouped_by_month(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('reports'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'reports/reports.html')
+        revenue = list(response.context['monthly_revenue'])
+        self.assertEqual(len(revenue), 2)
+        self.assertEqual(revenue[0]['month'].month, 1)
+        self.assertEqual(revenue[0]['total'], Decimal('200.00'))
+        self.assertEqual(revenue[1]['month'].month, 2)
+        self.assertEqual(revenue[1]['total'], Decimal('300.00'))
+
+    def test_reports_rejects_non_admin(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(reverse('reports'))
+
+        self.assertEqual(response.status_code, 403)
