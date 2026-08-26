@@ -8,13 +8,41 @@ from orders.models import Order, OrderItem
 
 from .forms import StyledLoginForm
 from .models import User
-from .utils import staff_or_admin_required, admin_required
+from .utils import admin_required, staff_or_admin_required
 
 
 class RoleBasedLoginView(LoginView):
     template_name = 'core/login.html'
     authentication_form = StyledLoginForm
     redirect_authenticated_user = True
+    
+    CUSTOMER_ACCESS_MESSAGE = "Customer accounts cannot access the staff portal."
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.role == User.ROLE_CUSTOMER:
+            from django.contrib.auth import logout
+            logout(request)
+            return self.render_to_response(
+                self.get_context_data(
+                    customer_access_error=self.CUSTOMER_ACCESS_MESSAGE
+                )
+            )
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        user = form.get_user()
+
+        # Customer accounts do not have access to the staff portal.
+        # Reject the login without creating an authenticated session.
+        if user.role == User.ROLE_CUSTOMER:
+            context = self.get_context_data(
+                form=form,
+                customer_access_error=self.CUSTOMER_ACCESS_MESSAGE,
+            )
+            return self.render_to_response(context)
+
+        return super().form_valid(form)
 
     def get_success_url(self):
         user = self.request.user
@@ -79,9 +107,20 @@ def dashboard(request):
 
 @admin_required
 def reports(request):
-    """Reports & Analytics page - Task 3: Top 5 Selling Products"""
+    """Reports & Analytics page"""
+    from django.db.models.functions import TruncMonth
+
+    monthly_revenue = (
+        Order.objects.filter(status=Order.STATUS_COMPLETED)
+        .annotate(month=TruncMonth('created_at'))
+        .values('month')
+        .annotate(total=Sum('total_amount'))
+        .order_by('month')
+    )
+    
     top_products = (
         OrderItem.objects
+        .filter(order__status=Order.STATUS_COMPLETED)
         .values('product__name')
         .annotate(total_qty=Sum('quantity'))
         .order_by('-total_qty')[:5]
@@ -91,4 +130,5 @@ def reports(request):
         'title': 'Executive Reports',
         'is_admin': True,
         'top_products': top_products,
+        'monthly_revenue': monthly_revenue,
     })

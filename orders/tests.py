@@ -1,3 +1,6 @@
+import csv
+import io
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -6,8 +9,9 @@ from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.db.models import F
 from django.template.loader import render_to_string
-from django.test import RequestFactory, Client, TestCase
-from django.urls import reverse, resolve
+from django.test import Client, RequestFactory, TestCase
+from django.urls import resolve, reverse
+from django.utils import timezone
 
 from inventory.models import Product, Supplier
 from orders.models import InvalidOrderTransitionError, Invoice, Order, OrderItem
@@ -473,7 +477,6 @@ class OrderCancellationTests(TestCase):
         order = self.create_completed_order()
         self.client.force_login(self.admin)
 
-        self.client.post(reverse('order_cancel', args=[order.pk]))
         self.client.post(reverse('order_cancel', args=[order.pk]))
 
         order.refresh_from_db()
@@ -1379,7 +1382,6 @@ class OrderCancellationIdempotencyTests(TestCase):
 
         self.client.force_login(self.user)
         self.client.post(reverse('order_cancel', args=[order.pk]))
-        self.client.post(reverse('order_cancel', args=[order.pk]))
 
         order.refresh_from_db()
         self.product_a.refresh_from_db()
@@ -1388,3 +1390,131 @@ class OrderCancellationIdempotencyTests(TestCase):
         self.assertEqual(order.status, Order.STATUS_CANCELLED)
         self.assertEqual(self.product_a.stock_quantity, initial_stock_a + 4)
         self.assertEqual(self.product_b.stock_quantity, initial_stock_b + 1)
+
+
+class ReportsAndExportTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='reports_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.sales_rep = User.objects.create_user(
+            username='reports_sales_rep',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        
+        from inventory.models import Supplier, Product
+        supplier = Supplier.objects.create(name='Test Supplier', email='test@supplier.com')
+        self.prod_a = Product.objects.create(supplier=supplier, name='Prod A', unit_price=Decimal('10.00'), stock_quantity=100)
+        self.prod_b = Product.objects.create(supplier=supplier, name='Prod B', unit_price=Decimal('20.00'), stock_quantity=100)
+
+        self.january_order = self.create_order(
+            'January Customer', Decimal('125.50'), Order.STATUS_COMPLETED,
+            datetime(2026, 1, 15, tzinfo=timezone.get_current_timezone()),
+            [(self.prod_a, 5), (self.prod_b, 2)]
+        )
+        self.january_order_two = self.create_order(
+            'Second January Customer', Decimal('74.50'), Order.STATUS_COMPLETED,
+            datetime(2026, 1, 28, tzinfo=timezone.get_current_timezone()),
+            [(self.prod_a, 3)]
+        )
+        self.february_order = self.create_order(
+            'February Customer', Decimal('300.00'), Order.STATUS_COMPLETED,
+            datetime(2026, 2, 10, tzinfo=timezone.get_current_timezone()),
+            [(self.prod_b, 10)]
+        )
+        self.pending_order = self.create_order(
+            'Pending Customer', Decimal('999.00'), Order.STATUS_PENDING,
+            datetime(2026, 1, 20, tzinfo=timezone.get_current_timezone()),
+            [(self.prod_a, 50)] # Should not appear in top_products
+        )
+        self.cancelled_order = self.create_order(
+            'Cancelled Customer', Decimal('100.00'), Order.STATUS_CANCELLED,
+            datetime(2026, 1, 21, tzinfo=timezone.get_current_timezone()),
+            [(self.prod_b, 100)] # Should not appear in top_products
+        )
+
+    def create_order(self, customer, total, status, created_at, items=None):
+        order = Order.objects.create(
+            user=self.sales_rep,
+            customer_name=customer,
+            total_amount=total,
+            status=status,
+        )
+        if items:
+            for product, qty in items:
+                OrderItem.objects.create(
+                    order=order, product=product, quantity=qty, unit_price=product.unit_price
+                )
+
+        Order.objects.filter(pk=order.pk).update(created_at=created_at)
+        order.refresh_from_db()
+        return order
+
+    def test_admin_sees_completed_revenue_grouped_by_month_and_top_products(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('reports'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/reports.html')
+        
+        # Check Monthly Revenue
+        revenue = list(response.context['monthly_revenue'])
+        self.assertEqual(len(revenue), 2)
+        self.assertEqual(revenue[0]['month'].month, 1)
+        self.assertEqual(revenue[0]['total'], Decimal('200.00'))
+        self.assertEqual(revenue[1]['month'].month, 2)
+        self.assertEqual(revenue[1]['total'], Decimal('300.00'))
+        
+        # Check Top Products (should exclude pending and cancelled orders)
+        # Prod B: 2 (completed Jan) + 10 (completed Feb) = 12
+        # Prod A: 5 (completed Jan) + 3 (completed Jan) = 8
+        top_products = list(response.context['top_products'])
+        self.assertEqual(len(top_products), 2)
+        self.assertEqual(top_products[0]['product__name'], 'Prod B')
+        self.assertEqual(top_products[0]['total_qty'], 12)
+        self.assertEqual(top_products[1]['product__name'], 'Prod A')
+        self.assertEqual(top_products[1]['total_qty'], 8)
+
+        self.assertContains(response, 'Export Orders CSV')
+
+    def test_reports_rejects_non_admin(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(reverse('reports'))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_export_contains_only_completed_orders(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('export_orders_csv'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/csv')
+        self.assertEqual(
+            response['Content-Disposition'],
+            'attachment; filename="orders.csv"',
+        )
+        rows = list(csv.reader(io.StringIO(response.content.decode())))
+        self.assertEqual(rows[0], [
+            'Order #', 'Customer', 'Sales Rep', 'Total', 'Status', 'Created At',
+        ])
+        exported_numbers = {row[0] for row in rows[1:]}
+        self.assertEqual(exported_numbers, {
+            self.january_order.order_number,
+            self.january_order_two.order_number,
+            self.february_order.order_number,
+        })
+        self.assertNotIn(self.pending_order.order_number, exported_numbers)
+
+    def test_export_rejects_non_admin(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(reverse('export_orders_csv'))
+
+        self.assertEqual(response.status_code, 403)
+
