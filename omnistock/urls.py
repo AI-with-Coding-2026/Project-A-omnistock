@@ -22,6 +22,7 @@ from orders import views as order_views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('reports/', order_views.reports, name='reports'),
+    path('orders/export/csv/', order_views.export_orders_csv, name='export_orders_csv'),
     path('', include('core.urls')),
     path('inventory/', include('inventory.urls')),
     path('orders/', include('orders.urls')),

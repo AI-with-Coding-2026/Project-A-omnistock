@@ -1447,6 +1447,7 @@ class ReportsAndExportTests(TestCase):
         self.assertEqual(revenue[0]['total'], Decimal('200.00'))
         self.assertEqual(revenue[1]['month'].month, 2)
         self.assertEqual(revenue[1]['total'], Decimal('300.00'))
+        self.assertContains(response, 'Export Orders CSV')
 
     def test_reports_rejects_non_admin(self):
         self.client.force_login(self.sales_rep)
@@ -1454,3 +1455,42 @@ class ReportsAndExportTests(TestCase):
         response = self.client.get(reverse('reports'))
 
         self.assertEqual(response.status_code, 403)
+
+    def test_export_contains_only_completed_orders(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('export_orders_csv'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/csv')
+        self.assertEqual(
+            response['Content-Disposition'],
+            'attachment; filename="orders.csv"',
+        )
+        rows = list(csv.reader(io.StringIO(response.content.decode())))
+        self.assertEqual(rows[0], [
+            'Order #', 'Customer', 'Sales Rep', 'Total', 'Status', 'Created At',
+        ])
+        exported_numbers = {row[0] for row in rows[1:]}
+        self.assertEqual(exported_numbers, {
+            self.january_order.order_number,
+            self.january_order_two.order_number,
+            self.february_order.order_number,
+        })
+        self.assertNotIn(self.pending_order.order_number, exported_numbers)
+
+    def test_export_rejects_non_admin(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(reverse('export_orders_csv'))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_order_list_shows_export_link_only_to_admin(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('order_list'))
+        self.assertContains(response, 'Export Orders CSV')
+
+        self.client.force_login(self.sales_rep)
+        response = self.client.get(reverse('order_list'))
+        self.assertNotContains(response, 'Export Orders CSV')
