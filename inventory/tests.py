@@ -172,6 +172,47 @@ class ProductIndexViewTests(TestCase):
         self.assertFalse(page_obj.has_next())
         self.assertTrue(page_obj.has_previous())
 
+    def test_stock_status_filter_low(self):
+        response = self.client.get(reverse('product_index'), {'stock_status': 'low'})
+        products = list(response.context['products'])
+        self.assertIn(self.widget_a, products)
+        self.assertNotIn(self.widget_b, products)
+        self.assertNotIn(self.gizmo, products)
+
+    def test_stock_status_filter_in_stock(self):
+        response = self.client.get(reverse('product_index'), {'stock_status': 'in_stock'})
+        products = list(response.context['products'])
+        self.assertNotIn(self.widget_a, products)
+        self.assertIn(self.widget_b, products)
+        self.assertIn(self.gizmo, products)
+
+    def test_stock_status_at_reorder_level_counts_as_low(self):
+        boundary = Product.objects.create(
+            sku='BND-3001', name='Boundary Widget', supplier=self.supplier_a,
+            unit_price=5.00, stock_quantity=5, reorder_level=5,
+        )
+        response = self.client.get(reverse('product_index'), {'stock_status': 'low'})
+        products = list(response.context['products'])
+        self.assertIn(boundary, products)
+    
+    def test_stock_status_filter_combined_with_supplier(self):
+        response = self.client.get(
+            reverse('product_index'), {'stock_status': 'low', 'supplier': self.supplier_a.id}
+        )
+        products = list(response.context['products'])
+        self.assertEqual(products, [self.widget_a])
+
+    def test_stock_status_filter_combined_with_search(self):
+        response = self.client.get(
+            reverse('product_index'), {'stock_status': 'in_stock', 'q': 'widget'}
+        )
+        products = list(response.context['products'])
+        self.assertEqual(products, [self.widget_b])
+
+    def test_querystring_preserves_stock_status(self):
+        response = self.client.get(reverse('product_index'), {'stock_status': 'low', 'page': 1})
+        querystring = response.context['querystring']
+        self.assertIn('stock_status=low', querystring)
 
 class SupplierFormTests(TestCase):
     def setUp(self):
