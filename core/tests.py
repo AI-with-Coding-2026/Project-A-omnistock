@@ -103,11 +103,16 @@ class ReportsAccessRestrictionTests(TestCase):
         response = self.client.get(self.reports_url)
         self.assertEqual(response.status_code, 302)
 
-    def test_reports_nav_link_visible_only_for_admin(self):
-        self.client.force_login(self.admin_user)
-        response = self.client.get(reverse('dashboard'))
-        self.assertContains(response, self.reports_url)
+    def test_unreleased_reports_and_invoices_nav_links_are_hidden_for_all_roles(self):
+        for user in (
+            self.admin_user,
+            self.staff_user,
+            self.sales_rep_user,
+        ):
+            with self.subTest(role=user.role):
+                self.client.force_login(user)
+                response = self.client.get(reverse("dashboard"))
 
-        self.client.force_login(self.staff_user)
-        response = self.client.get(reverse('dashboard'))
-        self.assertNotContains(response, self.reports_url)
+                self.assertNotContains(response, ">Reports<", html=False)
+                self.assertNotContains(response, ">Invoices<", html=False)
+                self.assertNotContains(response, ">Executive Reports<", html=False)

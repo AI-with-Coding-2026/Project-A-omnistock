@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.test import Client, TestCase
 from django.urls import reverse
 from orders.models import Order, OrderItem
@@ -171,6 +172,47 @@ class ProductIndexViewTests(TestCase):
         self.assertFalse(page_obj.has_next())
         self.assertTrue(page_obj.has_previous())
 
+    def test_stock_status_filter_low(self):
+        response = self.client.get(reverse('product_index'), {'stock_status': 'low'})
+        products = list(response.context['products'])
+        self.assertIn(self.widget_a, products)
+        self.assertNotIn(self.widget_b, products)
+        self.assertNotIn(self.gizmo, products)
+
+    def test_stock_status_filter_in_stock(self):
+        response = self.client.get(reverse('product_index'), {'stock_status': 'in_stock'})
+        products = list(response.context['products'])
+        self.assertNotIn(self.widget_a, products)
+        self.assertIn(self.widget_b, products)
+        self.assertIn(self.gizmo, products)
+
+    def test_stock_status_at_reorder_level_counts_as_low(self):
+        boundary = Product.objects.create(
+            sku='BND-3001', name='Boundary Widget', supplier=self.supplier_a,
+            unit_price=5.00, stock_quantity=5, reorder_level=5,
+        )
+        response = self.client.get(reverse('product_index'), {'stock_status': 'low'})
+        products = list(response.context['products'])
+        self.assertIn(boundary, products)
+    
+    def test_stock_status_filter_combined_with_supplier(self):
+        response = self.client.get(
+            reverse('product_index'), {'stock_status': 'low', 'supplier': self.supplier_a.id}
+        )
+        products = list(response.context['products'])
+        self.assertEqual(products, [self.widget_a])
+
+    def test_stock_status_filter_combined_with_search(self):
+        response = self.client.get(
+            reverse('product_index'), {'stock_status': 'in_stock', 'q': 'widget'}
+        )
+        products = list(response.context['products'])
+        self.assertEqual(products, [self.widget_b])
+
+    def test_querystring_preserves_stock_status(self):
+        response = self.client.get(reverse('product_index'), {'stock_status': 'low', 'page': 1})
+        querystring = response.context['querystring']
+        self.assertIn('stock_status=low', querystring)
 
 class SupplierFormTests(TestCase):
     def setUp(self):
@@ -529,13 +571,52 @@ class ProtectedDeletionTests(TestCase):
             unit_price=Decimal('50.00'),
         )
 
-    def test_delete_protected_product_redirects_with_error(self):
+    def test_delete_protected_product_redirects_with_red_error_message(self):
         """Deleting a product referenced by an OrderItem should not crash (500)."""
         response = self.client.post(
-            reverse('product_delete', args=[self.product.pk])
+            reverse('product_delete', args=[self.product.pk]),
+            follow=True,
         )
         self.assertRedirects(response, reverse('product_list'))
         self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].tags, 'error')
+        self.assertIn(
+            'This product cannot be deleted because it is referenced by existing order history.',
+            str(messages[0]),
+        )
+
+        # Confirms the rendered banner uses the red error styling.
+        self.assertContains(response, 'bg-red-50')
+        self.assertContains(response, 'text-red-800')
+
+
+    def test_delete_unreferenced_product_redirects_with_green_success_message(self):
+        deletable_product = Product.objects.create(
+            supplier=self.supplier,
+            name='Deletable Product',
+            unit_price=Decimal('25.00'),
+            stock_quantity=5,
+        )
+
+        response = self.client.post(
+            reverse('product_delete', args=[deletable_product.pk]),
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('product_list'))
+        self.assertFalse(Product.objects.filter(pk=deletable_product.pk).exists())
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].tags, 'success')
+        self.assertIn('Product deleted.', str(messages[0]))
+
+        # Confirms the rendered success banner remains green.
+        self.assertContains(response, 'bg-green-50')
+        self.assertContains(response, 'text-green-800')
 
     def test_delete_protected_supplier_redirects_with_error(self):
         """Deleting a supplier whose products are referenced by OrderItems should not crash (500)."""

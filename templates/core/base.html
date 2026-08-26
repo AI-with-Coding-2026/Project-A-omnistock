@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,21 +29,37 @@
             outline: 2px solid #0f172a;
             outline-offset: 2px;
         }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
-        ::-webkit-scrollbar-track { background: transparent; }
 
-        #sidebar-toggle:checked + .app-shell #sidebar {
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #sidebar-toggle:checked+.app-shell #sidebar {
             transform: translateX(0);
         }
 
-        #sidebar-toggle:checked + .app-shell .sidebar-overlay {
+        #sidebar-toggle:checked+.app-shell .sidebar-overlay {
             display: block;
         }
 
         @media print {
-            .print\:hidden { display: none !important; }
-            main { padding: 0 !important; }
+            .print\:hidden {
+                display: none !important;
+            }
+
+            main {
+                padding: 0 !important;
+            }
         }
     </style>
     {% block extra_head %}{% endblock %}
@@ -50,7 +67,7 @@
 
 <body class="bg-gray-50 text-gray-900 font-sans antialiased">
 
-{% if user.is_authenticated %}
+    {% if user.is_authenticated %}
 
     <!-- AUTHENTICATED APP -->
     <input type="checkbox" id="sidebar-toggle" class="hidden peer">
@@ -58,14 +75,11 @@
     <div class="app-shell min-h-screen flex">
 
         <!-- SIDEBAR -->
-        <aside
-            id="sidebar"
-            class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white
                    flex flex-col
                    -translate-x-full lg:sticky lg:inset-auto lg:top-0 lg:h-screen lg:translate-x-0
                    transition-transform duration-200 ease-out
-                   print:hidden"
-        >
+                   print:hidden">
 
             <div class="flex h-[60px] items-center gap-3 border-b border-slate-800 px-6">
                 <div class="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center font-bold text-sm">
@@ -77,116 +91,116 @@
             <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
 
                 {% url 'dashboard' as dashboard_url %}
-                <a href="{{ dashboard_url }}"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                <a href="{{ dashboard_url }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                           transition-colors border-l-2
                           {% if request.resolver_match.url_name == 'dashboard' %}
                               bg-slate-800 border-slate-100 text-white
                           {% else %}
                               border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
                           {% endif %}">
-                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                        <rect x="3" y="3" width="6" height="6" rx="1"/>
-                        <rect x="11" y="3" width="6" height="6" rx="1"/>
-                        <rect x="3" y="11" width="6" height="6" rx="1"/>
-                        <rect x="11" y="11" width="6" height="6" rx="1"/>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                        stroke-width="1.6">
+                        <rect x="3" y="3" width="6" height="6" rx="1" />
+                        <rect x="11" y="3" width="6" height="6" rx="1" />
+                        <rect x="3" y="11" width="6" height="6" rx="1" />
+                        <rect x="11" y="11" width="6" height="6" rx="1" />
                     </svg>
                     Dashboard
                 </a>
 
                 {% if user.role == 'ADMIN' or user.role == 'INVENTORY_MANAGER' %}
 
-                    {% url 'product_list' as product_url %}
-                    <a href="{{ product_url }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                {% url 'product_list' as product_url %}
+                <a href="{{ product_url }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                               transition-colors border-l-2
                               {% if request.resolver_match.url_name == 'product_list' %}
                                   bg-slate-800 border-slate-100 text-white
                               {% else %}
                                   border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
                               {% endif %}">
-                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                            <path d="M3 6l7-3 7 3-7 3-7-3z"/>
-                            <path d="M3 6v8l7 3 7-3V6"/>
-                            <path d="M10 9v8"/>
-                        </svg>
-                        Products
-                    </a>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                        stroke-width="1.6">
+                        <path d="M3 6l7-3 7 3-7 3-7-3z" />
+                        <path d="M3 6v8l7 3 7-3V6" />
+                        <path d="M10 9v8" />
+                    </svg>
+                    Products
+                </a>
 
-                    {% url 'supplier_index' as supplier_url %}
-                    <a href="{{ supplier_url }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                {% url 'supplier_index' as supplier_url %}
+                <a href="{{ supplier_url }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                               transition-colors border-l-2
                               {% if request.resolver_match.url_name == 'supplier_index' %}
                                   bg-slate-800 border-slate-100 text-white
                               {% else %}
                                   border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
                               {% endif %}">
-                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                            <path d="M3 13V7a1 1 0 011-1h7v7"/>
-                            <path d="M11 9h3l3 3v4h-6"/>
-                            <circle cx="6" cy="16" r="1.5"/>
-                            <circle cx="14" cy="16" r="1.5"/>
-                        </svg>
-                        Suppliers
-                    </a>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                        stroke-width="1.6">
+                        <path d="M3 13V7a1 1 0 011-1h7v7" />
+                        <path d="M11 9h3l3 3v4h-6" />
+                        <circle cx="6" cy="16" r="1.5" />
+                        <circle cx="14" cy="16" r="1.5" />
+                    </svg>
+                    Suppliers
+                </a>
 
                 {% else %}
 
-                    <!-- Staff / Sales Rep: view-only links, CRUD hidden in views -->
-                    {% url 'product_list' as product_url %}
-                    <a href="{{ product_url }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                <!-- Staff / Sales Rep: view-only links, CRUD hidden in views -->
+                {% url 'product_list' as product_url %}
+                <a href="{{ product_url }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                               transition-colors border-l-2
                               {% if request.resolver_match.url_name == 'product_list' %}
                                   bg-slate-800 border-slate-100 text-white
                               {% else %}
                                   border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
                               {% endif %}">
-                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                            <path d="M3 6l7-3 7 3-7 3-7-3z"/>
-                            <path d="M3 6v8l7 3 7-3V6"/>
-                            <path d="M10 9v8"/>
-                        </svg>
-                        Products (View)
-                    </a>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                        stroke-width="1.6">
+                        <path d="M3 6l7-3 7 3-7 3-7-3z" />
+                        <path d="M3 6v8l7 3 7-3V6" />
+                        <path d="M10 9v8" />
+                    </svg>
+                    Products (View)
+                </a>
 
-                    {% url 'supplier_index' as supplier_url %}
-                    <a href="{{ supplier_url }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                {% url 'supplier_index' as supplier_url %}
+                <a href="{{ supplier_url }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                               transition-colors border-l-2
                               {% if request.resolver_match.url_name == 'supplier_index' %}
                                   bg-slate-800 border-slate-100 text-white
                               {% else %}
                                   border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
                               {% endif %}">
-                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                            <path d="M3 13V7a1 1 0 011-1h7v7"/>
-                            <path d="M11 9h3l3 3v4h-6"/>
-                            <circle cx="6" cy="16" r="1.5"/>
-                            <circle cx="14" cy="16" r="1.5"/>
-                        </svg>
-                        Suppliers (View)
-                    </a>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                        stroke-width="1.6">
+                        <path d="M3 13V7a1 1 0 011-1h7v7" />
+                        <path d="M11 9h3l3 3v4h-6" />
+                        <circle cx="6" cy="16" r="1.5" />
+                        <circle cx="14" cy="16" r="1.5" />
+                    </svg>
+                    Suppliers (View)
+                </a>
 
                 {% endif %}
 
-                
-    
+
+
                 {% url 'order_list' as order_url %}
-                <a href="{{ order_url }}"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                <a href="{{ order_url }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                           transition-colors border-l-2
                           {% if request.resolver_match.url_name == 'order_list' %}
                               bg-slate-800 border-slate-100 text-white
                           {% else %}
                               border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
                           {% endif %}">
-                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                        <path d="M4 4h12l-1 9H5L4 4z"/>
-                        <path d="M4 4L3 2H1"/>
-                        <circle cx="7" cy="17" r="1.2"/>
-                        <circle cx="14" cy="17" r="1.2"/>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                        stroke-width="1.6">
+                        <path d="M4 4h12l-1 9H5L4 4z" />
+                        <path d="M4 4L3 2H1" />
+                        <circle cx="7" cy="17" r="1.2" />
+                        <circle cx="14" cy="17" r="1.2" />
                     </svg>
                     Orders
                 </a>
@@ -209,42 +223,43 @@
                     </a>
                 {% endif %}
 
-                {% if request.user.role == 'ADMIN' %}
-                
+                {% if reports_ready and request.user.role == 'ADMIN' %}
                 <a href="{% url 'reports' %}"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+
                           transition-colors border-l-2 border-transparent text-slate-300
                           hover:bg-slate-800 hover:text-white">
-                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                        <path d="M4 4h12v12H4z"/>
-                        <path d="M7 8h6M7 11h6M7 14h3"/>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                        stroke-width="1.6">
+                        <path d="M4 4h12v12H4z" />
+                        <path d="M7 8h6M7 11h6M7 14h3" />
                     </svg>
                     Reports
                 </a>
                 {% endif %}
 
 
-                {% if user.role == 'ADMIN' %}
+                {% if invoices_ready and request.user.role == 'ADMIN' %}
 
-                    <a href="#"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                               border-l-2 border-transparent text-slate-300
                               hover:bg-slate-800 hover:text-white transition-colors">
-                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                            <path d="M5 3h10v14l-5-3-5 3V3z"/>
-                        </svg>
-                        Invoices
-                    </a>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                        stroke-width="1.6">
+                        <path d="M5 3h10v14l-5-3-5 3V3z" />
+                    </svg>
+                    Invoices
+                </a>
 
-                    <a href="#"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                               border-l-2 border-transparent text-amber-300
                               hover:bg-slate-800 hover:text-white transition-colors">
-                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                            <path d="M3 17V9M9 17V5M15 17v-7"/>
-                        </svg>
-                        Executive Reports
-                    </a>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                        stroke-width="1.6">
+                        <path d="M3 17V9M9 17V5M15 17v-7" />
+                    </svg>
+                    Executive Reports
+                </a>
 
                 {% endif %}
 
@@ -254,7 +269,8 @@
             <div class="p-4 border-t border-slate-800">
 
                 <div class="flex items-center gap-3 mb-3">
-                    <div class="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-sm font-semibold shrink-0">
+                    <div
+                        class="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-sm font-semibold shrink-0">
                         {{ user.username|first|upper }}
                     </div>
                     <div class="min-w-0">
@@ -265,15 +281,12 @@
 
                 <form method="post" action="{% url 'logout' %}">
                     {% csrf_token %}
-                    <button
-                        type="submit"
-                        class="w-full flex items-center gap-2 text-sm text-slate-300
-                               hover:text-white transition-colors"
-                    >
+                    <button type="submit" class="w-full flex items-center gap-2 text-sm text-slate-300
+                               hover:text-white transition-colors">
                         <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                            <path d="M8 4H4v12h4"/>
-                            <path d="M13 14l4-4-4-4"/>
-                            <path d="M17 10H8"/>
+                            <path d="M8 4H4v12h4" />
+                            <path d="M13 14l4-4-4-4" />
+                            <path d="M17 10H8" />
                         </svg>
                         Log out
                     </button>
@@ -284,7 +297,8 @@
         </aside>
 
         <!-- MOBILE OVERLAY -->
-        <label for="sidebar-toggle" class="sidebar-overlay fixed inset-0 bg-slate-900/40 z-30 hidden lg:!hidden print:hidden"></label>
+        <label for="sidebar-toggle"
+            class="sidebar-overlay fixed inset-0 bg-slate-900/40 z-30 hidden lg:!hidden print:hidden"></label>
 
         <!-- MAIN AREA -->
         <div class="flex-1 flex flex-col min-w-0">
@@ -296,7 +310,7 @@
                 <div class="flex items-center gap-3">
                     <label for="sidebar-toggle" class="lg:hidden -ml-1 p-2 rounded-lg hover:bg-gray-100 cursor-pointer">
                         <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-                            <path d="M3 5h14M3 10h14M3 15h14"/>
+                            <path d="M3 5h14M3 10h14M3 15h14" />
                         </svg>
                     </label>
                     <h1 class="text-lg sm:text-xl font-semibold text-gray-900">
@@ -312,6 +326,20 @@
 
             <!-- CONTENT -->
             <main class="flex-1 p-4 sm:p-8">
+                {% if messages %}
+                <div class="mb-6 space-y-3">
+                    {% for message in messages %}
+                    <div class="rounded-lg border px-4 py-3 text-sm
+                                {% if message.tags == 'success' %}
+                                      bg-green-50 border-green-200 text-green-800
+                                {% else %}
+                                      bg-red-50 border-red-200 text-red-800
+                                {% endif %}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
                 {% block content %}
                 {% endblock %}
             </main>
@@ -326,7 +354,7 @@
 
     </div>
 
-{% else %}
+    {% else %}
 
     <!-- PUBLIC / LOGIN AREA -->
     <div class="min-h-screen flex flex-col">
@@ -341,6 +369,20 @@
         </header>
 
         <main class="flex-1 flex items-center justify-center p-8">
+            {% if messages %}
+            <div class="mb-6 space-y-3">
+                {% for message in messages %}
+                <div class="rounded-lg border px-4 py-3 text-sm
+                    {% if message.tags == 'success' %}
+                      bg-green-50 border-green-200 text-green-800
+                    {% else %}
+                        bg-red-50 border-red-200 text-red-800
+                    {% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
             {% block public_content %}
             {% endblock %}
         </main>
@@ -352,7 +394,8 @@
 
     </div>
 
-{% endif %}
+    {% endif %}
 
 </body>
+
 </html>
