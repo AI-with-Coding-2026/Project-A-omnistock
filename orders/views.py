@@ -4,8 +4,7 @@ from collections import defaultdict
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import F, Sum
-from django.db.models.functions import TruncMonth
+from django.db.models import F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string

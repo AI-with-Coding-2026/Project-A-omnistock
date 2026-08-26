@@ -120,6 +120,7 @@ def reports(request):
     
     top_products = (
         OrderItem.objects
+        .filter(order__status=Order.STATUS_COMPLETED)
         .values('product__name')
         .annotate(total_qty=Sum('quantity'))
         .order_by('-total_qty')[:5]

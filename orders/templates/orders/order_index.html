@@ -6,9 +6,7 @@
 {% block content %}
 
 <div class="space-y-6">
-    {% if request.user.role == 'ADMIN' %}
-    <a href="{% url 'export_orders_csv' %}" class="btn">Export Orders CSV</a>
-    {% endif %}
+
     <form method="get" action="{% url 'order_index' %}">
         <label for="status">Status:</label>
         <select name="status" id="status">
