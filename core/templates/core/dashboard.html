@@ -58,6 +58,16 @@
         </div>
 
     </section>
+    <!-- Revenue Chart -->
+    <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Revenue over time</h2>
+            <p class="text-sm text-gray-500 mt-0.5">Monthly revenue from completed orders.</p>
+        </div>
+        <div class="relative" style="height: 320px;">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </section>
 
     <!-- Low Stock -->
     <section class="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -102,4 +112,48 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // TODO: swap this dummy data for the real monthly revenue query (Task 2355) once available.
+    const revenueLabels = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+    const revenueData = [4200, 5100, 4800, 6300, 7000, 6550];
+
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: revenueLabels,
+            datasets: [{
+                label: 'Revenue ($)',
+                data: revenueData,
+                borderColor: '#0f172a',
+                backgroundColor: 'rgba(15, 23, 42, 0.08)',
+                fill: true,
+                tension: 0.35,
+                pointRadius: 3,
+                pointBackgroundColor: '#0f172a',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => '$' + context.parsed.y.toLocaleString(),
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: (value) => '$' + value.toLocaleString(),
+                    }
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}
