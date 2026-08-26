@@ -1564,3 +1564,18 @@ class OrderCustomerIntegrationTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.customer_name, 'Picked Customer')  # unchanged
         self.assertEqual(order.customer.name, 'Renamed Later')  # FK reflects live data
+    
+    def test_inline_customer_duplicate_email_shows_friendly_error(self):
+        response = self.client.post(reverse('order_create'), {
+            'new_customer_name': 'Duplicate Attempt',
+            'new_customer_email': self.existing_customer.email,  # already exists
+            'items[][product]': [str(self.product.id)],
+            'items[][quantity]': ['1'],
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'already exists')
+        self.assertEqual(
+            Customer.objects.filter(email=self.existing_customer.email).count(),
+            1,
+        )

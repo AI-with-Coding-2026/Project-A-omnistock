@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 
 from django.contrib import messages
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -168,7 +168,7 @@ def order_create(request):
                 'customers': customers,
             })
 
-        # ── Check customer selection is valid WITHOUT creating anything yet ──
+        # ─Check customer selection is valid WITHOUT creating anything yet 
         new_customer_name = request.POST.get('new_customer_name', '').strip()
         new_customer_email = request.POST.get('new_customer_email', '').strip()
         existing_customer = form.cleaned_data.get('customer')
@@ -213,16 +213,39 @@ def order_create(request):
                 'customers': customers,
             })
 
-        # ── All validation passed: now safe to create the Customer if needed ──
+                #  All validation passed: now safe to create the Customer if needed 
         if existing_customer:
             customer = existing_customer
         else:
-            customer = Customer.objects.create(
-                name=new_customer_name,
-                email=new_customer_email,
-                phone=request.POST.get('new_customer_phone', '').strip(),
-                address=request.POST.get('new_customer_address', '').strip(),
-            )
+            customer_form = CustomerForm({
+                'name': new_customer_name,
+                'email': new_customer_email,
+                'phone': request.POST.get('new_customer_phone', '').strip(),
+                'address': request.POST.get('new_customer_address', '').strip(),
+            })
+            if not customer_form.is_valid():
+                for field, errors in customer_form.errors.items():
+                    for error in errors:
+                        form.add_error(None, f'New customer {field}: {error}')
+                return render(request, 'orders/order_form.html', {
+                    'form': form,
+                    'title': 'Create Order',
+                    'products': products,
+                    'customers': customers,
+                })
+            try:
+                customer = customer_form.save()
+            except IntegrityError:
+                form.add_error(
+                    None,
+                    'A customer with that email already exists. Please select them from the existing customers list instead.',
+                )
+                return render(request, 'orders/order_form.html', {
+                    'form': form,
+                    'title': 'Create Order',
+                    'products': products,
+                    'customers': customers,
+                })
 
         order = form.save(commit=False)
         order.customer = customer
