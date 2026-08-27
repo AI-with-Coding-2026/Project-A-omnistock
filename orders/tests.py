@@ -1406,7 +1406,6 @@ class OrderAdvancedSearchAndFilterTests(TestCase):
             phone_number='+1234567890',
         )
 
-        # ربط الـ supplier بالمنتجات
         self.product_laptop = Product.objects.create(
             name='Gaming Laptop',
             sku='LAP-001',
@@ -1422,7 +1421,6 @@ class OrderAdvancedSearchAndFilterTests(TestCase):
             supplier=self.supplier,
         )
 
-        # إنشاء 3 طلبات
         self.order1 = Order.objects.create(
             customer_name='Alice Smith',
             status='pending',
