@@ -1,0 +1,16 @@
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('core', '0001_initial'),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name='user',
+            name='role',
+            field=models.CharField(choices=[('ADMIN', 'Admin'), ('INVENTORY_MANAGER', 'Inventory Manager'), ('SALES_REP', 'Sales Rep'), ('STAFF', 'Staff')], default='STAFF', max_length=30),
+        ),
+    ]
