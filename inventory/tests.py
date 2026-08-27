@@ -1301,3 +1301,45 @@ class SupplierPortalPOResponseTests(TestCase):
         purchase_orders = list(response.context['purchase_orders'])
         self.assertIn(self.po_a, purchase_orders)
         self.assertIn(self.po_b, purchase_orders)
+
+    def test_get_request_to_accept_returns_405(self):
+        self.client.force_login(self.supplier_a_user)
+        response = self.client.get(
+            reverse('supplier_portal_po_accept', args=[self.po_a.pk])
+        )
+        self.assertEqual(response.status_code, 405)
+
+    def test_get_request_to_reject_returns_405(self):
+        self.client.force_login(self.supplier_a_user)
+        response = self.client.get(
+            reverse('supplier_portal_po_reject', args=[self.po_a.pk])
+        )
+        self.assertEqual(response.status_code, 405)
+
+    def test_anonymous_user_redirected_to_login_on_list(self):
+        response = self.client.get(reverse('supplier_portal_po_list'))
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('supplier_portal_po_list')}"
+        )
+
+    def test_anonymous_user_redirected_to_login_on_accept(self):
+        response = self.client.post(
+            reverse('supplier_portal_po_accept', args=[self.po_a.pk])
+        )
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('supplier_portal_po_accept', args=[self.po_a.pk])}"
+        )
+
+    def test_reject_only_available_while_pending(self):
+        PurchaseOrder.objects.filter(pk=self.po_a.pk).update(status=PurchaseOrder.STATUS_RECEIVED)
+        self.po_a.refresh_from_db()
+        
+        self.client.force_login(self.supplier_a_user)
+        response = self.client.post(
+            reverse('supplier_portal_po_reject', args=[self.po_a.pk])
+        )
+        self.assertRedirects(response, reverse('supplier_portal_po_list'))
+        self.po_a.refresh_from_db()
+        self.assertEqual(self.po_a.status, PurchaseOrder.STATUS_RECEIVED)
