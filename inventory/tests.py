@@ -1158,4 +1158,3 @@ class PurchaseOrderListViewTests(TestCase):
         self.client.force_login(self.inventory_manager)
         response = self.client.get(reverse('purchase_order_list'))
         self.assertEqual(response.status_code, 200)
-

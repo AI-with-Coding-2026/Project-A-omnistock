@@ -1517,6 +1517,7 @@ class ReportsAndExportTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+
 class OrderStatusTransitionViewTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(username='admin_t', password='pass123!', role='ADMIN')
@@ -1630,7 +1631,6 @@ class OrderStatusTransitionViewTests(TestCase):
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('cannot be cancelled' in str(m) for m in messages))
 
-
 class OrderListActionButtonsTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(username='admin_b', password='pass123!', role='ADMIN')
@@ -1652,6 +1652,7 @@ class OrderListActionButtonsTests(TestCase):
     def test_staff_sees_complete_button_not_cancel_on_pending(self):
         self.client.force_login(self.staff)
         response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
         html = response.content.decode()
         self.assertIn(f"action=\"/orders/{self.pending_order.pk}/complete/\"", html)
         self.assertNotIn(f"action=\"/orders/{self.pending_order.pk}/cancel/\"", html)
@@ -1659,6 +1660,7 @@ class OrderListActionButtonsTests(TestCase):
     def test_admin_sees_both_buttons_on_pending(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
         html = response.content.decode()
         self.assertIn(f"action=\"/orders/{self.pending_order.pk}/complete/\"", html)
         self.assertIn(f"action=\"/orders/{self.pending_order.pk}/cancel/\"", html)
@@ -1666,6 +1668,7 @@ class OrderListActionButtonsTests(TestCase):
     def test_admin_sees_only_cancel_on_completed(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
         html = response.content.decode()
         self.assertNotIn(f"action=\"/orders/{self.completed_order.pk}/complete/\"", html)
         self.assertIn(f"action=\"/orders/{self.completed_order.pk}/cancel/\"", html)
@@ -1673,7 +1676,7 @@ class OrderListActionButtonsTests(TestCase):
     def test_no_action_buttons_on_cancelled(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
         html = response.content.decode()
         self.assertNotIn(f"action=\"/orders/{self.cancelled_order.pk}/complete/\"", html)
         self.assertNotIn(f"action=\"/orders/{self.cancelled_order.pk}/cancel/\"", html)
-
