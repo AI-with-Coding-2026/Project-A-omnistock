@@ -7,6 +7,9 @@ from django.urls import reverse
 from orders.models import Order, OrderItem
 from .models import InvalidPurchaseOrderTransitionError, Product, PurchaseOrder, PurchaseOrderItem, Supplier
 
+from django.db import IntegrityError, transaction
+from unittest.mock import patch
+
 User = get_user_model()
 
 
@@ -1452,3 +1455,49 @@ class POEmailNotificationTests(TestCase):
         self.client.force_login(self.supplier_user)
         self.client.post(reverse('supplier_portal_po_reject', args=[po.pk]))
         self.assertEqual(len(mail.outbox), 0)
+
+def test_send_failure_is_logged_and_does_not_break_workflow(self):
+    """
+    A send_mail() failure must be caught and logged, not raised, so a
+    PO action (e.g. Accept) still succeeds even if email delivery fails.
+    """
+    po = PurchaseOrder.objects.create(
+        supplier=self.supplier, created_by=self.admin,
+        status=PurchaseOrder.STATUS_PENDING,
+    )
+    self.client.force_login(self.supplier_user)
+
+    with patch('inventory.services.send_mail', side_effect=Exception('SMTP down')):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse('supplier_portal_po_accept', args=[po.pk]))
+
+    self.assertRedirects(response, reverse('supplier_portal_po_list'))
+    po.refresh_from_db()
+    self.assertEqual(po.status, PurchaseOrder.STATUS_APPROVED)
+
+    # No email actually landed in the outbox, since sending failed.
+    self.assertEqual(len(mail.outbox), 0)
+
+def test_on_commit_email_not_sent_on_rollback(self):
+    """
+    If the surrounding transaction is rolled back, the scheduled
+    on_commit() email must never fire.
+    """
+    from inventory.services import send_po_issued_notification
+
+    with self.assertRaises(IntegrityError):
+        with transaction.atomic():
+            po = PurchaseOrder.objects.create(
+                supplier=self.supplier, created_by=self.admin,
+                status=PurchaseOrder.STATUS_PENDING,
+            )
+            send_po_issued_notification(po)
+            # Force the transaction to fail after scheduling the email,
+            # so it rolls back and on_commit() should never fire.
+            PurchaseOrder.objects.create(
+                supplier=self.supplier, created_by=self.admin,
+                status=PurchaseOrder.STATUS_PENDING,
+                po_number=po.po_number,  # duplicate PO number -> IntegrityError
+            )
+
+    self.assertEqual(len(mail.outbox), 0)
