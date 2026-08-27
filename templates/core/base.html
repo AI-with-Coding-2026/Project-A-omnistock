@@ -52,6 +52,15 @@
             display: block;
         }
 
+        /* Public header logo: transitions to dark when header goes light on scroll */
+        .logo {
+            transition: filter .3s ease;
+        }
+
+        .public-header-scrolled .logo {
+            filter: brightness(0) saturate(100%);
+        }
+
         @media print {
             .print\:hidden {
                 display: none !important;
@@ -351,13 +360,14 @@
     <!-- PUBLIC / LOGIN AREA -->
     <div class="min-h-screen flex flex-col">
 
-        <header class="bg-slate-900 text-white px-8 py-5">
-            <div class="max-w-7xl mx-auto flex items-center">
-                <img src="{% static 'core/logo.svg' %}" alt="OmniStock Logo" class="h-10 w-auto">
+        <header class="sticky top-0 z-50 bg-slate-900 text-white px-8 py-5" style="background-color:#0f172a;">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <img src="{% static 'core/logo.svg' %}" alt="OmniStock Logo" class="logo h-10 w-auto">
+                {% block public_header_extra %}{% endblock %}
             </div>
         </header>
 
-        <main class="flex-1 flex items-center justify-center p-8">
+        <main class="flex-1 {% block public_main_class %}flex items-center justify-center p-8{% endblock %}">
             {% if messages %}
             <div class="mb-6 space-y-3">
                 {% for message in messages %}
@@ -378,7 +388,7 @@
 
         <footer class="bg-white border-t border-gray-200 px-8 py-4
                        text-sm text-gray-400 text-center">
-            &copy; 2026 OmniStock. All rights reserved. v2
+            &copy; 2026 OmniStock. All rights reserved.
         </footer>
 
     </div>

@@ -1,0 +1,2834 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}OmniStock | Know what's moving. Know what's running low.{% endblock %}
+
+{% block public_main_class %}p-0{% endblock %}
+
+{% block public_header_extra %}
+<div class="public-nav-wrapper">
+
+    <nav class="public-nav">
+        <a href="#workflow">Workflow</a>
+        <a href="#features">Features</a>
+        <a href="#roles">Roles</a>
+    </nav>
+
+    <a href="{% url 'login' %}" class="public-login">
+        Log in
+    </a>
+
+</div>
+{% endblock %}
+
+
+{% block public_content %}
+
+<div class="w-full"
+    style="--navy:#0E1526;
+           --navy-2:#141D33;
+           --offwhite:#FAF8F3;
+           --line:rgba(14,21,38,0.10);
+           --line-dark:rgba(255,255,255,0.12);
+           --green:#1F9D6B;
+           --green-bg:#E3F4EC;
+           --green-text:#146B49;
+           --amber:#B8842B;
+           --amber-bg:#F6EEDC;
+           --amber-text:#8A6318;
+           --coral:#D6604A;
+           --coral-bg:#FBEAE5;
+           --coral-text:#A5432F;
+           --ink2:#5C6478;
+           --font-head:'Manrope', Inter, system-ui, sans-serif;
+           --font-mono:'JetBrains Mono', ui-monospace, monospace;">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
+
+    <!-- HERO -->
+    <section id="top"
+        style="background:var(--navy);"
+        class="text-white relative overflow-hidden">
+
+        <div class="os-grid-bg" aria-hidden="true"></div>
+
+        <div class="max-w-7xl mx-auto px-8 pt-16 pb-28 grid lg:grid-cols-2 gap-16 items-center relative">
+
+            <div class="os-reveal">
+
+                <p class="text-xs font-semibold tracking-widest uppercase mb-5"
+                    style="color:#8B93A8;">
+                    Operations workspace for inventory teams
+                </p>
+
+                <h1 style="font-family:var(--font-head); letter-spacing:-0.02em;"
+                    class="text-4xl md:text-[3.1rem] leading-[1.08] font-bold mb-6">
+
+                    Know what's
+                    <span style="color:var(--green);">moving</span>.<br>
+
+                    Know what's
+                    <span style="color:var(--green);">running low</span>.
+                </h1>
+
+                <p class="text-lg leading-relaxed mb-9 max-w-lg"
+                    style="color:#B6BECF;">
+
+                    OmniStock connects products, suppliers, customer orders, and stock alerts
+                    in one operational workspace - so your team can act before small gaps
+                    become expensive problems.
+
+                </p>
+
+                <div class="flex flex-wrap gap-4">
+
+                    <a href="{% url 'login' %}"
+                        class="os-btn-primary">
+                        See the workspace
+                    </a>
+
+                    <a href="#workflow"
+                        class="os-btn-secondary">
+                        Explore how it works
+                    </a>
+
+                </div>
+
+            </div>
+
+
+            <div class="os-reveal"
+                style="animation-delay:.08s">
+
+                <div class="os-command"
+                    aria-hidden="true">
+
+                    <svg viewBox="0 0 460 380"
+                        class="os-command-lines">
+
+                        <path d="M230,198 L83,46" />
+                        <path d="M230,198 L377,46" />
+                        <path d="M230,198 L230,334" />
+
+                    </svg>
+
+
+                    <div class="os-sat"
+                        style="left:18%; top:12%;">
+
+                        <p class="os-sat-label">
+                            Products
+                        </p>
+
+                        <p class="os-sat-value">
+                            1,284 SKUs
+                        </p>
+
+                    </div>
+
+
+                    <div class="os-sat"
+                        style="left:82%; top:12%; transform:translate(-50%,-50%);">
+
+                        <p class="os-sat-label">
+                            Suppliers
+                        </p>
+
+                        <p class="os-sat-value">
+                            18 active
+                        </p>
+
+                    </div>
+
+
+                    <div class="os-sat"
+                        style="left:50%; top:88%; transform:translate(-50%,-50%);">
+
+                        <p class="os-sat-label">
+                            Orders
+                        </p>
+
+                        <p class="os-sat-value">
+                            37 open
+                        </p>
+
+                    </div>
+
+
+                    <div class="os-health">
+
+                        <div class="os-health-ring">
+
+                            <div class="os-health-ring-inner">
+
+                                <span class="os-health-num"
+                                    style="font-family:var(--font-mono);">
+                                    94%
+                                </span>
+
+                                <span class="os-health-sub">
+                                    healthy
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="os-health-legend">
+
+                            <span>
+                                <i style="background:var(--green);"></i>
+                                Healthy
+                            </span>
+
+                            <span>
+                                <i style="background:var(--amber);"></i>
+                                Low
+                            </span>
+
+                            <span>
+                                <i style="background:var(--coral);"></i>
+                                Critical
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <svg class="os-divider os-divider-bottom"
+            viewBox="0 0 1440 60"
+            preserveAspectRatio="none"
+            aria-hidden="true">
+
+            <path d="M0,32 C360,64 1080,0 1440,30 L1440,60 L0,60 Z"
+                fill="var(--offwhite)">
+            </path>
+
+        </svg>
+
+    </section>
+
+
+    <!-- WORKFLOW -->
+    <section id="workflow"
+        style="background:var(--offwhite);"
+        class="py-24">
+
+        <div class="max-w-7xl mx-auto px-8">
+
+            <div class="max-w-xl mb-16 os-reveal">
+
+                <p class="text-xs font-semibold tracking-widest uppercase mb-3"
+                    style="color:var(--ink2);">
+                    The path every order takes
+                </p>
+
+                <h2 style="font-family:var(--font-head); color:var(--navy);"
+                    class="text-2xl md:text-3xl font-bold">
+
+                    From order to insight
+
+                </h2>
+
+            </div>
+
+
+            <div class="os-stagger">
+
+                <div class="os-wcard os-reveal">
+
+                    <div class="os-wcard-head">
+
+                        <span class="os-wcard-num"
+                            style="font-family:var(--font-mono);">
+                            01
+                        </span>
+
+                        <span class="os-status os-status-green">
+                            Complete
+                        </span>
+
+                    </div>
+
+                    <h3 class="os-wcard-title">
+                        Order created
+                    </h3>
+
+                    <p class="os-wcard-desc">
+                        A customer order comes in with items, quantities, and shipping details.
+                    </p>
+
+                    <div class="os-mini">
+
+                        <div class="os-mini-row">
+                            <span>Order #1046</span>
+                            <span style="font-family:var(--font-mono);">$482.00</span>
+                        </div>
+
+                        <div class="os-mini-row"
+                            style="color:var(--ink2); font-size:12px;">
+
+                            <span>
+                                Bramble Supply · 6 items
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="os-wcard os-reveal"
+                    style="animation-delay:.08s">
+
+                    <div class="os-wcard-head">
+
+                        <span class="os-wcard-num"
+                            style="font-family:var(--font-mono);">
+                            02
+                        </span>
+
+                        <span class="os-status os-status-green">
+                            Complete
+                        </span>
+
+                    </div>
+
+                    <h3 class="os-wcard-title">
+                        Stock verified
+                    </h3>
+
+                    <p class="os-wcard-desc">
+                        Available quantity is checked against what's already reserved.
+                    </p>
+
+                    <div class="os-mini">
+
+                        <div class="os-mini-row">
+
+                            <span>Available</span>
+
+                            <span style="font-family:var(--font-mono);">
+                                142
+                            </span>
+
+                        </div>
+
+                        <div class="os-bar">
+
+                            <div class="os-bar-fill"
+                                style="width:78%; background:var(--green);">
+                            </div>
+
+                        </div>
+
+                        <div class="os-mini-row"
+                            style="color:var(--ink2); font-size:12px;">
+
+                            <span>
+                                Reserved for this order: 6
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="os-wcard os-reveal"
+                    style="animation-delay:.16s">
+
+                    <div class="os-wcard-head">
+
+                        <span class="os-wcard-num"
+                            style="font-family:var(--font-mono);">
+                            03
+                        </span>
+
+                        <span class="os-status os-status-blue">
+                            In progress
+                        </span>
+
+                    </div>
+
+                    <h3 class="os-wcard-title">
+                        Inventory updated
+                    </h3>
+
+                    <p class="os-wcard-desc">
+                        Stock counts adjust automatically the moment the order is confirmed.
+                    </p>
+
+                    <div class="os-mini">
+
+                        <div class="os-mini-row">
+
+                            <span>
+                                Kraft mailers, M
+                            </span>
+
+                            <span style="font-family:var(--font-mono);"
+                                id="osQty">
+                                148
+                            </span>
+
+                        </div>
+
+                        <div class="os-mini-row"
+                            style="color:var(--ink2); font-size:12px;">
+
+                            <span>
+                                Updating in real time
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="os-wcard os-reveal"
+                    style="animation-delay:.24s">
+
+                    <div class="os-wcard-head">
+
+                        <span class="os-wcard-num"
+                            style="font-family:var(--font-mono);">
+                            04
+                        </span>
+
+                        <span class="os-status os-status-amber">
+                            Action needed
+                        </span>
+
+                    </div>
+
+                    <h3 class="os-wcard-title">
+                        Team alerted
+                    </h3>
+
+                    <p class="os-wcard-desc">
+                        If stock drops below threshold, the right person is notified.
+                    </p>
+
+                    <div class="os-mini os-mini-alert">
+
+                        <div class="os-mini-row">
+
+                            <span>
+                                Kraft mailers, M
+                            </span>
+
+                            <span style="color:var(--amber-text); font-family:var(--font-mono);">
+                                14% left
+                            </span>
+
+                        </div>
+
+                        <button type="button"
+                            class="os-mini-action"
+                            tabindex="-1"
+                            aria-hidden="true">
+
+                            Reorder recommended
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- BEFORE / AFTER -->
+    <section style="background:#fff; border-color:var(--line);"
+        class="py-24 border-t border-b">
+
+        <div class="max-w-7xl mx-auto px-8">
+
+            <div class="max-w-xl mb-14 os-reveal">
+
+                <p class="text-xs font-semibold tracking-widest uppercase mb-3"
+                    style="color:var(--ink2);">
+                    The shift
+                </p>
+
+                <h2 style="font-family:var(--font-head); color:var(--navy);"
+                    class="text-2xl md:text-3xl font-bold">
+
+                    From scattered spreadsheets to one clear system
+
+                </h2>
+
+            </div>
+
+
+            <div class="grid lg:grid-cols-[1fr_auto_1fr] gap-8 items-center">
+
+                <div class="os-reveal">
+
+                    <p class="os-ba-label"
+                        style="color:var(--coral-text);">
+                        Before OmniStock
+                    </p>
+
+                    <div class="os-messy">
+
+                        <div class="os-messy-card"
+                            style="transform:rotate(-3deg);">
+                            Inventory_FINAL_v3.xlsx
+                        </div>
+
+                        <div class="os-messy-card"
+                            style="transform:rotate(2deg); margin-left:28px;">
+                            Manual stock check - Tue
+                        </div>
+
+                        <div class="os-messy-card"
+                            style="transform:rotate(-1.5deg); margin-left:10px;">
+                            Missed supplier email
+                        </div>
+
+                        <div class="os-messy-card os-messy-alert"
+                            style="transform:rotate(1.5deg); margin-left:40px;">
+                            Low stock found too late
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="os-ba-arrow os-reveal"
+                    aria-hidden="true">
+
+                    <svg width="40"
+                        height="24"
+                        viewBox="0 0 40 24"
+                        fill="none">
+
+                        <path d="M0 12h34M26 4l10 8-10 8"
+                            stroke="var(--green)"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round" />
+
+                    </svg>
+
+                </div>
+
+
+                <div class="os-reveal">
+
+                    <p class="os-ba-label"
+                        style="color:var(--green-text);">
+                        With OmniStock
+                    </p>
+
+                    <div class="os-clean">
+
+                        <div class="os-clean-row">
+                            <i class="os-dot"
+                                style="background:var(--green);">
+                            </i>
+                            Centralized inventory
+                        </div>
+
+                        <div class="os-clean-row">
+                            <i class="os-dot"
+                                style="background:var(--green);">
+                            </i>
+                            Connected suppliers
+                        </div>
+
+                        <div class="os-clean-row">
+                            <i class="os-dot"
+                                style="background:var(--green);">
+                            </i>
+                            Clear order states
+                        </div>
+
+                        <div class="os-clean-row">
+                            <i class="os-dot"
+                                style="background:var(--green);">
+                            </i>
+                            Proactive alerts
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- BENTO FEATURES -->
+    <section id="features"
+        style="background:var(--offwhite);"
+        class="py-24">
+
+        <div class="max-w-7xl mx-auto px-8">
+
+            <div class="max-w-xl mb-14 os-reveal">
+
+                <p class="text-xs font-semibold tracking-widest uppercase mb-3"
+                    style="color:var(--ink2);">
+                    What's inside
+                </p>
+
+                <h2 style="font-family:var(--font-head); color:var(--navy);"
+                    class="text-2xl md:text-3xl font-bold">
+
+                    Product modules, not marketing tiles
+
+                </h2>
+
+            </div>
+
+
+            <div class="os-bento os-reveal">
+
+                <div class="os-bento-cell os-bento-large">
+
+                    <h3 class="os-bento-title">
+                        Inventory control
+                    </h3>
+
+                    <p class="os-bento-desc">
+                        Track products, prices, quantities, and thresholds from one catalog.
+                    </p>
+
+                    <div class="os-stockviz"
+                        role="img"
+                        aria-label="Stock health trending down through the week, from healthy on Monday to critical on Friday, recovering Saturday.">
+
+                        <div>
+                            <div class="os-stockviz-bar"
+                                style="height:38%; background:var(--green);">
+                            </div>
+                            <span>Mon</span>
+                        </div>
+
+                        <div>
+                            <div class="os-stockviz-bar"
+                                style="height:62%; background:var(--green);">
+                            </div>
+                            <span>Tue</span>
+                        </div>
+
+                        <div>
+                            <div class="os-stockviz-bar"
+                                style="height:44%; background:var(--green);">
+                            </div>
+                            <span>Wed</span>
+                        </div>
+
+                        <div>
+                            <div class="os-stockviz-bar"
+                                style="height:28%; background:var(--amber);">
+                            </div>
+                            <span>Thu</span>
+                        </div>
+
+                        <div>
+                            <div class="os-stockviz-bar"
+                                style="height:18%; background:var(--coral);">
+                            </div>
+                            <span>Fri</span>
+                        </div>
+
+                        <div>
+                            <div class="os-stockviz-bar"
+                                style="height:52%; background:var(--green);">
+                            </div>
+                            <span>Sat</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="os-bento-cell">
+
+                    <h3 class="os-bento-title">
+                        Supplier management
+                    </h3>
+
+                    <p class="os-bento-desc">
+                        Status at a glance, no digging through email.
+                    </p>
+
+                    <div class="os-supplier-rows">
+
+                        <div class="os-supplier-row">
+                            <span>Bramble Supply</span>
+                            <span class="os-status os-status-green"
+                                style="font-size:11px;">
+                                Connected
+                            </span>
+                        </div>
+
+                        <div class="os-supplier-row">
+                            <span>Northline Traders</span>
+                            <span class="os-status os-status-amber"
+                                style="font-size:11px;">
+                                Pending
+                            </span>
+                        </div>
+
+                        <div class="os-supplier-row">
+                            <span>Alder &amp; Finch</span>
+                            <span class="os-status os-status-coral"
+                                style="font-size:11px;">
+                                Delayed
+                            </span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="os-bento-cell">
+
+                    <h3 class="os-bento-title">
+                        Order processing
+                    </h3>
+
+                    <p class="os-bento-desc">
+                        Every order's stage, always visible.
+                    </p>
+
+                    <div class="os-pipeline">
+
+                        <div class="os-pipeline-stage">
+                            <span style="font-family:var(--font-mono);">
+                                12
+                            </span>
+                            New
+                        </div>
+
+                        <div class="os-pipeline-stage">
+                            <span style="font-family:var(--font-mono);">
+                                9
+                            </span>
+                            Picking
+                        </div>
+
+                        <div class="os-pipeline-stage">
+                            <span style="font-family:var(--font-mono);">
+                                7
+                            </span>
+                            Shipped
+                        </div>
+
+                        <div class="os-pipeline-stage">
+                            <span style="font-family:var(--font-mono);">
+                                21
+                            </span>
+                            Delivered
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="os-bento-cell">
+
+                    <h3 class="os-bento-title">
+                        Low-stock alerts
+                    </h3>
+
+                    <p class="os-bento-desc">
+                        Thresholds you control, notifications that reach the right person.
+                    </p>
+
+                    <div class="os-alert-preview">
+
+                        <div class="os-alert-icon"
+                            aria-hidden="true">
+                            !
+                        </div>
+
+                        <div>
+
+                            <p style="font-weight:600; font-size:13px; color:var(--navy);">
+                                Kraft mailers, M
+                            </p>
+
+                            <p style="font-size:12px; color:var(--ink2);">
+                                14% remaining · reorder recommended
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- DASHBOARD PREVIEW -->
+    <section style="background:#fff;"
+        class="py-24">
+
+        <div class="max-w-7xl mx-auto px-8">
+
+            <div class="max-w-xl mb-12 os-reveal">
+
+                <p class="text-xs font-semibold tracking-widest uppercase mb-3"
+                    style="color:var(--ink2);">
+                    Inside the workspace
+                </p>
+
+                <h2 style="font-family:var(--font-head); color:var(--navy);"
+                    class="text-2xl md:text-3xl font-bold">
+
+                    One dashboard, the full operational picture
+
+                </h2>
+
+            </div>
+
+
+            <div class="os-browser os-reveal">
+
+                <div class="os-browser-bar">
+
+                    <span></span>
+                    <span></span>
+                    <span></span>
+
+                    <div class="os-browser-url">
+                        app.omnistock.com/dashboard
+                    </div>
+
+                </div>
+
+
+                <div class="os-browser-body">
+
+                    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+                        <div class="os-metric">
+                            <p class="os-metric-label">
+                                Total SKUs
+                            </p>
+
+                            <p class="os-metric-num"
+                                style="font-family:var(--font-mono);">
+                                1,284
+                            </p>
+                        </div>
+
+
+                        <div class="os-metric">
+
+                            <p class="os-metric-label">
+                                Open orders
+                            </p>
+
+                            <p class="os-metric-num"
+                                style="font-family:var(--font-mono);"
+                                id="osOpenOrders">
+                                37
+                            </p>
+
+                        </div>
+
+
+                        <div class="os-metric">
+
+                            <p class="os-metric-label">
+                                Low-stock items
+                            </p>
+
+                            <p class="os-metric-num"
+                                style="font-family:var(--font-mono); color:var(--amber-text);">
+                                3
+                            </p>
+
+                        </div>
+
+
+                        <div class="os-metric">
+
+                            <p class="os-metric-label">
+                                Active suppliers
+                            </p>
+
+                            <p class="os-metric-num"
+                                style="font-family:var(--font-mono);">
+                                18
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="grid lg:grid-cols-5 gap-6">
+
+                        <div class="lg:col-span-3 os-panel-block">
+
+                            <p class="os-panel-title">
+                                Recent orders
+                            </p>
+
+                            <table class="w-full text-sm">
+
+                                <caption class="sr-only">
+                                    Example recent orders and their status
+                                </caption>
+
+                                <thead>
+
+                                    <tr style="color:var(--ink2);">
+
+                                        <th scope="col"
+                                            class="text-left font-medium pb-2">
+                                            Order
+                                        </th>
+
+                                        <th scope="col"
+                                            class="text-left font-medium pb-2">
+                                            Customer
+                                        </th>
+
+                                        <th scope="col"
+                                            class="text-left font-medium pb-2">
+                                            Status
+                                        </th>
+
+                                        <th scope="col"
+                                            class="text-right font-medium pb-2">
+                                            Total
+                                        </th>
+
+                                    </tr>
+
+                                </thead>
+
+
+                                <tbody style="font-family:var(--font-mono); font-size:12.5px;">
+
+                                    <tr class="os-row">
+
+                                        <td class="py-2.5">
+                                            #1042
+                                        </td>
+
+                                        <td class="py-2.5"
+                                            style="font-family:Inter, sans-serif;">
+                                            Harbor Retail Co.
+                                        </td>
+
+                                        <td class="py-2.5">
+                                            <span class="os-status os-status-green">
+                                                Completed
+                                            </span>
+                                        </td>
+
+                                        <td class="py-2.5 text-right">
+                                            $1,240.00
+                                        </td>
+
+                                    </tr>
+
+
+                                    <tr class="os-row">
+
+                                        <td class="py-2.5">
+                                            #1043
+                                        </td>
+
+                                        <td class="py-2.5"
+                                            style="font-family:Inter, sans-serif;">
+                                            Northline Traders
+                                        </td>
+
+                                        <td class="py-2.5">
+                                            <span class="os-status os-status-blue">
+                                                Pending
+                                            </span>
+                                        </td>
+
+                                        <td class="py-2.5 text-right">
+                                            $382.50
+                                        </td>
+
+                                    </tr>
+
+
+                                    <tr class="os-row">
+
+                                        <td class="py-2.5">
+                                            #1044
+                                        </td>
+
+                                        <td class="py-2.5"
+                                            style="font-family:Inter, sans-serif;">
+                                            Alder &amp; Finch
+                                        </td>
+
+                                        <td class="py-2.5">
+                                            <span class="os-status os-status-coral">
+                                                Cancelled
+                                            </span>
+                                        </td>
+
+                                        <td class="py-2.5 text-right">
+                                            $96.00
+                                        </td>
+
+                                    </tr>
+
+
+                                    <tr class="os-row">
+
+                                        <td class="py-2.5">
+                                            #1045
+                                        </td>
+
+                                        <td class="py-2.5"
+                                            style="font-family:Inter, sans-serif;">
+                                            Bramble Supply
+                                        </td>
+
+                                        <td class="py-2.5">
+                                            <span class="os-status os-status-green">
+                                                Completed
+                                            </span>
+                                        </td>
+
+                                        <td class="py-2.5 text-right">
+                                            $2,015.75
+                                        </td>
+
+                                    </tr>
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+
+                        <div class="lg:col-span-2 flex flex-col gap-6">
+
+                            <div class="os-panel-block">
+
+                                <p class="os-panel-title">
+                                    Stock levels
+                                </p>
+
+                                <div class="flex flex-col gap-3">
+
+                                    <div>
+
+                                        <div class="flex justify-between text-sm mb-1">
+
+                                            <span>
+                                                Oat milk 1L
+                                            </span>
+
+                                            <span style="font-family:var(--font-mono); color:var(--ink2);">
+                                                82%
+                                            </span>
+
+                                        </div>
+
+                                        <div class="os-bar">
+
+                                            <div class="os-bar-fill"
+                                                style="width:82%; background:var(--green);">
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <div>
+
+                                        <div class="flex justify-between text-sm mb-1">
+
+                                            <span>
+                                                Kraft mailers, M
+                                            </span>
+
+                                            <span style="font-family:var(--font-mono); color:var(--amber-text);">
+                                                14%
+                                            </span>
+
+                                        </div>
+
+                                        <div class="os-bar">
+
+                                            <div class="os-bar-fill"
+                                                style="width:14%; background:var(--amber);">
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <div>
+
+                                        <div class="flex justify-between text-sm mb-1">
+
+                                            <span>
+                                                Cotton tote bag
+                                            </span>
+
+                                            <span style="font-family:var(--font-mono); color:var(--ink2);">
+                                                58%
+                                            </span>
+
+                                        </div>
+
+                                        <div class="os-bar">
+
+                                            <div class="os-bar-fill"
+                                                style="width:58%; background:#3E6FD8;">
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="os-panel-block">
+
+                                <p class="os-panel-title">
+                                    Alerts
+                                </p>
+
+                                <div class="flex flex-col gap-2 text-sm">
+
+                                    <div class="os-alert-line"
+                                        style="border-color:var(--coral);">
+
+                                        <span style="color:var(--coral-text); font-weight:600;">
+                                            Critical
+                                        </span>
+
+                                        - Padded envelopes, S out of stock
+
+                                    </div>
+
+
+                                    <div class="os-alert-line"
+                                        style="border-color:var(--amber);">
+
+                                        <span style="color:var(--amber-text); font-weight:600;">
+                                            Low
+                                        </span>
+
+                                        - Kraft mailers, M at 14%
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ROLES -->
+    <section id="roles"
+        style="background:var(--offwhite);"
+        class="py-24">
+
+        <div class="max-w-7xl mx-auto px-8">
+
+            <div class="max-w-xl mb-10 os-reveal">
+
+                <p class="text-xs font-semibold tracking-widest uppercase mb-3"
+                    style="color:var(--ink2);">
+                    Built for the whole team
+                </p>
+
+                <h2 style="font-family:var(--font-head); color:var(--navy);"
+                    class="text-2xl md:text-3xl font-bold">
+
+                    Every role, the right workspace
+
+                </h2>
+
+            </div>
+
+
+            <div class="os-reveal">
+
+                <div class="os-tabs"
+                    role="tablist"
+                    aria-label="Team roles">
+
+                    <button type="button"
+                        id="os-tab-admin"
+                        class="os-tab os-tab-active"
+                        role="tab"
+                        aria-selected="true"
+                        aria-controls="os-role-admin"
+                        data-role="admin">
+                        Admin
+                    </button>
+
+                    <button type="button"
+                        id="os-tab-sales"
+                        class="os-tab"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="os-role-sales"
+                        tabindex="-1"
+                        data-role="sales">
+                        Sales rep
+                    </button>
+
+                    <button type="button"
+                        id="os-tab-manager"
+                        class="os-tab"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="os-role-manager"
+                        tabindex="-1"
+                        data-role="manager">
+                        Inventory manager
+                    </button>
+
+                    <button type="button"
+                        id="os-tab-staff"
+                        class="os-tab"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="os-role-staff"
+                        tabindex="-1"
+                        data-role="staff">
+                        Staff
+                    </button>
+
+                </div>
+
+
+                <div class="os-role-panel"
+                    id="os-role-admin"
+                    role="tabpanel"
+                    aria-labelledby="os-tab-admin"
+                    tabindex="0">
+
+                    <div>
+
+                        <p class="os-role-heading">
+                            Admin
+                        </p>
+
+                        <p class="os-role-desc">
+                            Control users, roles, and the operational settings that keep the workspace running.
+                        </p>
+
+                        <ul class="os-role-list">
+
+                            <li>
+                                Manage user access and permissions
+                            </li>
+
+                            <li>
+                                Configure stock thresholds
+                            </li>
+
+                            <li>
+                                Oversee all orders and suppliers
+                            </li>
+
+                        </ul>
+
+                    </div>
+
+
+                    <div class="os-role-preview">
+
+                        <div class="os-mini-row">
+                            <span>Sarah K.</span>
+                            <span class="os-status os-status-green"
+                                style="font-size:11px;">
+                                Admin
+                            </span>
+                        </div>
+
+                        <div class="os-mini-row">
+                            <span>Jon P.</span>
+                            <span class="os-status os-status-blue"
+                                style="font-size:11px;">
+                                Sales rep
+                            </span>
+                        </div>
+
+                        <div class="os-mini-row">
+                            <span>Ravi T.</span>
+                            <span class="os-status os-status-green"
+                                style="font-size:11px;">
+                                Inventory mgr
+                            </span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="os-role-panel"
+                    id="os-role-sales"
+                    role="tabpanel"
+                    aria-labelledby="os-tab-sales"
+                    tabindex="0"
+                    hidden>
+
+                    <div>
+
+                        <p class="os-role-heading">
+                            Sales rep
+                        </p>
+
+                        <p class="os-role-desc">
+                            Create customer orders and follow their status through completion.
+                        </p>
+
+                        <ul class="os-role-list">
+
+                            <li>
+                                Create and edit customer orders
+                            </li>
+
+                            <li>
+                                Check live stock availability
+                            </li>
+
+                            <li>
+                                Track order status end to end
+                            </li>
+
+                        </ul>
+
+                    </div>
+
+
+                    <div class="os-role-preview">
+
+                        <div class="os-mini-row">
+
+                            <span>
+                                Order #1046
+                            </span>
+
+                            <span class="os-status os-status-blue"
+                                style="font-size:11px;">
+                                Pending
+                            </span>
+
+                        </div>
+
+                        <div class="os-mini-row">
+
+                            <span>
+                                Order #1044
+                            </span>
+
+                            <span class="os-status os-status-green"
+                                style="font-size:11px;">
+                                Completed
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="os-role-panel"
+                    id="os-role-manager"
+                    role="tabpanel"
+                    aria-labelledby="os-tab-manager"
+                    tabindex="0"
+                    hidden>
+
+                    <div>
+
+                        <p class="os-role-heading">
+                            Inventory manager
+                        </p>
+
+                        <p class="os-role-desc">
+                            Monitor product quantities, prices, suppliers, and low-stock items.
+                        </p>
+
+                        <ul class="os-role-list">
+
+                            <li>
+                                Set and adjust stock thresholds
+                            </li>
+
+                            <li>
+                                Review supplier performance
+                            </li>
+
+                            <li>
+                                Approve reorder recommendations
+                            </li>
+
+                        </ul>
+
+                    </div>
+
+
+                    <div class="os-role-preview">
+
+                        <div class="flex justify-between text-sm mb-1">
+
+                            <span>
+                                Kraft mailers, M
+                            </span>
+
+                            <span style="font-family:var(--font-mono); color:var(--amber-text);">
+                                14%
+                            </span>
+
+                        </div>
+
+                        <div class="os-bar">
+
+                            <div class="os-bar-fill"
+                                style="width:14%; background:var(--amber);">
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="os-role-panel"
+                    id="os-role-staff"
+                    role="tabpanel"
+                    aria-labelledby="os-tab-staff"
+                    tabindex="0"
+                    hidden>
+
+                    <div>
+
+                        <p class="os-role-heading">
+                            Staff
+                        </p>
+
+                        <p class="os-role-desc">
+                            A focused workspace for the tasks assigned to your role.
+                        </p>
+
+                        <ul class="os-role-list">
+
+                            <li>
+                                View assigned tasks only
+                            </li>
+
+                            <li>
+                                Update stock counts on the floor
+                            </li>
+
+                            <li>
+                                Flag discrepancies for review
+                            </li>
+
+                        </ul>
+
+                    </div>
+
+
+                    <div class="os-role-preview">
+
+                        <div class="os-mini-row">
+
+                            <span>
+                                Restock aisle 4
+                            </span>
+
+                            <span class="os-status os-status-blue"
+                                style="font-size:11px;">
+                                Assigned
+                            </span>
+
+                        </div>
+
+                        <div class="os-mini-row">
+
+                            <span>
+                                Count bin 12
+                            </span>
+
+                            <span class="os-status os-status-green"
+                                style="font-size:11px;">
+                                Done
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- FINAL CTA -->
+    <section style="background:var(--navy); position:relative;">
+
+        <svg class="os-divider os-divider-top"
+            viewBox="0 0 1440 60"
+            preserveAspectRatio="none"
+            aria-hidden="true">
+
+            <path d="M0,30 C360,0 1080,60 1440,28 L1440,0 L0,0 Z"
+                fill="var(--offwhite)">
+            </path>
+
+        </svg>
+
+
+        <div class="max-w-3xl mx-auto px-8 py-24 text-center os-reveal">
+
+            <h2 style="font-family:var(--font-head);"
+                class="text-2xl md:text-4xl font-bold text-white mb-4">
+
+                Stop guessing what's in stock.
+
+            </h2>
+
+            <p class="mb-9"
+                style="color:#B6BECF;">
+
+                Bring products, suppliers, orders, and alerts into one reliable workspace.
+
+            </p>
+
+            <a href="{% url 'login' %}"
+                class="os-btn-primary">
+
+                See the workspace
+
+            </a>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<style>
+
+    .sr-only {
+        position:absolute;
+        width:1px;
+        height:1px;
+        padding:0;
+        margin:-1px;
+        overflow:hidden;
+        clip:rect(0,0,0,0);
+        white-space:nowrap;
+        border:0;
+    }
+
+
+    /* ==========================================
+       PUBLIC HEADER NAVIGATION
+       ========================================== */
+
+    .public-nav-wrapper {
+        position:relative;
+        display:flex;
+        align-items:center;
+        justify-content:flex-end;
+        flex:1;
+        min-width:0;
+    }
+
+
+    .public-nav {
+        position:absolute;
+        left:50%;
+        transform:translateX(-50%);
+        display:flex;
+        align-items:center;
+        gap:1.75rem;
+        white-space:nowrap;
+    }
+
+
+    .public-nav a {
+        color:#cbd5e1;
+        font-size:.875rem;
+        font-weight:500;
+        text-decoration:none;
+        transition:
+            color .3s ease,
+            opacity .3s ease;
+    }
+
+
+    .public-nav a:hover {
+        color:#ffffff;
+    }
+
+
+    .public-login {
+        margin-left:auto;
+        background:#ffffff;
+        color:#0f172a;
+        padding:.5rem 1rem;
+        border-radius:.5rem;
+        font-size:.875rem;
+        font-weight:600;
+        text-decoration:none;
+        transition:
+            background-color .3s ease,
+            color .3s ease,
+            transform .2s ease;
+    }
+
+
+    .public-login:hover {
+        background:#f1f5f9;
+        transform:translateY(-1px);
+    }
+
+
+    /* When the header becomes light after scrolling */
+    .public-header-scrolled {
+        background-color:#ffffff !important;
+        box-shadow:0 2px 14px rgba(15,23,42,.08);
+        color:#0f172a !important;
+    }
+
+
+    .public-header-scrolled .public-nav a {
+        color:#334155;
+    }
+
+
+    .public-header-scrolled .public-nav a:hover {
+        color:#0f172a;
+    }
+
+
+    .public-header-scrolled .public-login {
+        background:#0f172a;
+        color:#ffffff;
+    }
+
+
+    .public-header-scrolled .public-login:hover {
+        background:#1e293b;
+    }
+
+
+    @media (max-width:767px) {
+
+        .public-nav {
+            display:none;
+        }
+
+        .public-nav-wrapper {
+            justify-content:flex-end;
+        }
+
+    }
+
+
+    .os-grid-bg {
+        position:absolute;
+        inset:0;
+        background-image:
+            linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+        background-size:42px 42px;
+        mask-image:radial-gradient(
+            ellipse at center,
+            #000 0%,
+            transparent 75%
+        );
+    }
+
+
+    .os-divider {
+        display:block;
+        width:100%;
+        height:44px;
+        position:relative;
+        z-index:1;
+    }
+
+
+    .os-divider-bottom {
+        margin-top:-2px;
+    }
+
+
+    .os-divider-top {
+        position:absolute;
+        top:0;
+        left:0;
+        transform:translateY(-99%);
+    }
+
+
+    .os-btn-primary {
+        display:inline-block;
+        background:#fff;
+        color:var(--navy);
+        padding:.75rem 1.5rem;
+        border-radius:8px;
+        font-weight:600;
+        font-size:.95rem;
+        text-decoration:none;
+        transition:
+            transform .18s ease,
+            background-color .18s ease;
+    }
+
+
+    .os-btn-primary:hover {
+        background:#EDEEF2;
+        transform:translateY(-2px);
+    }
+
+
+    .os-btn-primary:focus-visible {
+        outline:2px solid var(--green);
+        outline-offset:3px;
+    }
+
+
+    .os-btn-secondary {
+        display:inline-block;
+        background:transparent;
+        color:#fff;
+        padding:.75rem 1.5rem;
+        border-radius:8px;
+        font-weight:600;
+        font-size:.95rem;
+        border:1px solid rgba(255,255,255,0.28);
+        text-decoration:none;
+        transition:
+            transform .18s ease,
+            background-color .18s ease;
+    }
+
+
+    .os-btn-secondary:hover {
+        background:rgba(255,255,255,0.08);
+        transform:translateY(-2px);
+    }
+
+
+    .os-btn-secondary:focus-visible {
+        outline:2px solid var(--green);
+        outline-offset:3px;
+    }
+
+
+    .os-command {
+        position:relative;
+        max-width:460px;
+        margin:0 auto;
+        aspect-ratio:460/380;
+    }
+
+
+    .os-command-lines {
+        position:absolute;
+        inset:0;
+        width:100%;
+        height:100%;
+    }
+
+
+    .os-command-lines path {
+        fill:none;
+        stroke:rgba(255,255,255,0.22);
+        stroke-width:1.4;
+        stroke-dasharray:4 6;
+        animation:osFlowLine 3.6s linear infinite;
+    }
+
+
+    @keyframes osFlowLine {
+        to {
+            stroke-dashoffset:-40;
+        }
+    }
+
+
+    .os-sat {
+        position:absolute;
+        transform:translate(-50%,-50%);
+        background:var(--navy-2);
+        border:1px solid var(--line-dark);
+        border-radius:10px;
+        padding:.6rem .85rem;
+        min-width:110px;
+        text-align:left;
+    }
+
+
+    .os-sat-label {
+        font-size:11px;
+        color:#8B93A8;
+        margin-bottom:2px;
+    }
+
+
+    .os-sat-value {
+        font-size:13px;
+        font-weight:600;
+        color:#fff;
+        font-family:var(--font-mono);
+    }
+
+
+    .os-health {
+        position:absolute;
+        left:50%;
+        top:56%;
+        transform:translate(-50%,-50%);
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+    }
+
+
+    .os-health-ring {
+        width:118px;
+        height:118px;
+        border-radius:50%;
+        background:
+            conic-gradient(
+                var(--green) 0% 82%,
+                var(--amber) 82% 94%,
+                var(--coral) 94% 100%
+            );
+        display:flex;
+        align-items:center;
+        justify-content:center;
+    }
+
+
+    .os-health-ring-inner {
+        width:86px;
+        height:86px;
+        border-radius:50%;
+        background:var(--navy);
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+    }
+
+
+    .os-health-num {
+        font-size:20px;
+        font-weight:600;
+        color:#fff;
+    }
+
+
+    .os-health-sub {
+        font-size:10px;
+        color:#8B93A8;
+        margin-top:2px;
+    }
+
+
+    .os-health-legend {
+        display:flex;
+        gap:10px;
+        margin-top:.7rem;
+        font-size:10.5px;
+        color:#8B93A8;
+    }
+
+
+    .os-health-legend i {
+        display:inline-block;
+        width:7px;
+        height:7px;
+        border-radius:50%;
+        margin-right:4px;
+    }
+
+
+    .os-stagger {
+        display:grid;
+        grid-template-columns:repeat(4,1fr);
+        gap:1.5rem;
+    }
+
+
+    .os-wcard {
+        background:#fff;
+        border:1px solid var(--line);
+        border-radius:12px;
+        padding:1.35rem;
+        position:relative;
+    }
+
+
+    .os-stagger .os-wcard:nth-child(2) {
+        margin-top:1.75rem;
+    }
+
+
+    .os-stagger .os-wcard:nth-child(4) {
+        margin-top:1.75rem;
+    }
+
+
+    .os-wcard-head {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        margin-bottom:.85rem;
+    }
+
+
+    .os-wcard-num {
+        font-size:12px;
+        color:var(--ink2);
+    }
+
+
+    .os-wcard-title {
+        font-family:var(--font-head);
+        font-weight:700;
+        color:var(--navy);
+        font-size:15px;
+        margin-bottom:.4rem;
+    }
+
+
+    .os-wcard-desc {
+        font-size:13px;
+        color:var(--ink2);
+        line-height:1.5;
+        margin-bottom:1rem;
+    }
+
+
+    .os-mini {
+        background:var(--offwhite);
+        border-radius:8px;
+        padding:.75rem .85rem;
+    }
+
+
+    .os-mini-row {
+        display:flex;
+        justify-content:space-between;
+        font-size:13px;
+        color:var(--navy);
+        margin-bottom:.35rem;
+    }
+
+
+    .os-mini-alert {
+        background:var(--amber-bg);
+    }
+
+
+    .os-mini-action {
+        margin-top:.4rem;
+        font-size:12px;
+        font-weight:600;
+        color:var(--amber-text);
+        background:#fff;
+        border:1px solid var(--amber);
+        border-radius:6px;
+        padding:.35rem .6rem;
+        cursor:default;
+    }
+
+
+    .os-status {
+        font-size:11.5px;
+        font-weight:600;
+        padding:.2rem .55rem;
+        border-radius:999px;
+    }
+
+
+    .os-status-green {
+        background:var(--green-bg);
+        color:var(--green-text);
+    }
+
+
+    .os-status-amber {
+        background:var(--amber-bg);
+        color:var(--amber-text);
+    }
+
+
+    .os-status-coral {
+        background:var(--coral-bg);
+        color:var(--coral-text);
+    }
+
+
+    .os-status-blue {
+        background:#E9F0FC;
+        color:#2A54A8;
+    }
+
+
+    .os-ba-label {
+        font-size:12px;
+        font-weight:700;
+        text-transform:uppercase;
+        letter-spacing:.05em;
+        margin-bottom:1rem;
+    }
+
+
+    .os-messy-card {
+        background:#fff;
+        border:1px solid var(--line);
+        border-radius:8px;
+        padding:.65rem .9rem;
+        font-size:13px;
+        color:var(--navy);
+        max-width:230px;
+        margin-bottom:.65rem;
+        box-shadow:0 8px 18px -14px rgba(14,21,38,0.35);
+    }
+
+
+    .os-messy-alert {
+        border-color:var(--coral);
+        color:var(--coral-text);
+    }
+
+
+    .os-clean {
+        background:var(--offwhite);
+        border:1px solid var(--line);
+        border-radius:10px;
+        padding:1rem;
+    }
+
+
+    .os-clean-row {
+        display:flex;
+        align-items:center;
+        font-size:13.5px;
+        color:var(--navy);
+        padding:.5rem 0;
+        border-bottom:1px solid var(--line);
+    }
+
+
+    .os-clean-row:last-child {
+        border-bottom:none;
+    }
+
+
+    .os-dot {
+        display:inline-block;
+        width:7px;
+        height:7px;
+        border-radius:50%;
+        margin-right:.6rem;
+    }
+
+
+    .os-ba-arrow {
+        display:flex;
+        justify-content:center;
+    }
+
+
+    .os-bento {
+        display:grid;
+        grid-template-columns:repeat(3,1fr);
+        grid-auto-rows:auto;
+        gap:1.25rem;
+    }
+
+
+    .os-bento-cell {
+        background:#fff;
+        border:1px solid var(--line);
+        border-radius:12px;
+        padding:1.4rem;
+    }
+
+
+    .os-bento-large {
+        grid-column:span 2;
+        grid-row:span 2;
+    }
+
+
+    .os-bento-title {
+        font-family:var(--font-head);
+        font-weight:700;
+        color:var(--navy);
+        font-size:15px;
+        margin-bottom:.4rem;
+    }
+
+
+    .os-bento-desc {
+        font-size:13px;
+        color:var(--ink2);
+        margin-bottom:1rem;
+        line-height:1.5;
+    }
+
+
+    .os-stockviz {
+        display:flex;
+        align-items:flex-end;
+        gap:.6rem;
+        height:110px;
+    }
+
+
+    .os-stockviz > div {
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:flex-end;
+        flex:1;
+        height:100%;
+    }
+
+
+    .os-stockviz-bar {
+        width:100%;
+        border-radius:4px 4px 0 0;
+    }
+
+
+    .os-stockviz span {
+        font-size:10.5px;
+        color:var(--ink2);
+        margin-top:.4rem;
+    }
+
+
+    .os-supplier-rows {
+        display:flex;
+        flex-direction:column;
+        gap:.55rem;
+    }
+
+
+    .os-supplier-row {
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        font-size:13px;
+        color:var(--navy);
+    }
+
+
+    .os-pipeline {
+        display:flex;
+        gap:.6rem;
+    }
+
+
+    .os-pipeline-stage {
+        flex:1;
+        background:var(--offwhite);
+        border-radius:8px;
+        padding:.6rem .3rem;
+        text-align:center;
+        font-size:11px;
+        color:var(--ink2);
+    }
+
+
+    .os-pipeline-stage span {
+        display:block;
+        font-size:16px;
+        font-weight:600;
+        color:var(--navy);
+        margin-bottom:2px;
+    }
+
+
+    .os-alert-preview {
+        display:flex;
+        gap:.7rem;
+        align-items:flex-start;
+        background:var(--amber-bg);
+        border-radius:8px;
+        padding:.75rem .85rem;
+    }
+
+
+    .os-alert-icon {
+        width:22px;
+        height:22px;
+        border-radius:50%;
+        background:var(--amber);
+        color:#fff;
+        font-weight:700;
+        font-size:13px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        flex-shrink:0;
+    }
+
+
+    .os-browser {
+        border:1px solid var(--line);
+        border-radius:12px;
+        overflow:hidden;
+        box-shadow:0 24px 50px -35px rgba(14,21,38,0.4);
+    }
+
+
+    .os-browser-bar {
+        display:flex;
+        align-items:center;
+        gap:6px;
+        background:var(--offwhite);
+        border-bottom:1px solid var(--line);
+        padding:.65rem 1rem;
+    }
+
+
+    .os-browser-bar span {
+        width:8px;
+        height:8px;
+        border-radius:50%;
+        background:var(--line);
+    }
+
+
+    .os-browser-url {
+        margin-left:1rem;
+        font-size:12px;
+        color:var(--ink2);
+        background:#fff;
+        border:1px solid var(--line);
+        border-radius:6px;
+        padding:.15rem .6rem;
+        font-family:var(--font-mono);
+    }
+
+
+    .os-browser-body {
+        padding:1.75rem;
+    }
+
+
+    .os-metric {
+        background:var(--offwhite);
+        border-radius:10px;
+        padding:1rem 1.1rem;
+        transition:background-color .3s ease;
+    }
+
+
+    .os-metric-label {
+        font-size:.78rem;
+        color:var(--ink2);
+        margin-bottom:.35rem;
+    }
+
+
+    .os-metric-num {
+        font-size:1.3rem;
+        font-weight:600;
+        color:var(--navy);
+    }
+
+
+    .os-panel-block {
+        border:1px solid var(--line);
+        border-radius:10px;
+        padding:1.2rem;
+        height:100%;
+    }
+
+
+    .os-panel-title {
+        font-size:.85rem;
+        font-weight:700;
+        color:var(--navy);
+        margin-bottom:.9rem;
+        font-family:var(--font-head);
+    }
+
+
+    .os-row {
+        border-top:1px solid var(--line);
+        transition:background-color .2s ease;
+    }
+
+
+    .os-row:hover {
+        background:var(--offwhite);
+    }
+
+
+    .os-bar {
+        height:6px;
+        border-radius:999px;
+        background:var(--line);
+        overflow:hidden;
+    }
+
+
+    .os-bar-fill {
+        height:100%;
+        border-radius:999px;
+    }
+
+
+    .os-alert-line {
+        border-left:3px solid;
+        padding:.4rem .7rem;
+        background:var(--offwhite);
+        border-radius:0 6px 6px 0;
+        color:var(--navy);
+    }
+
+
+    .os-tabs {
+        display:inline-flex;
+        background:#fff;
+        border:1px solid var(--line);
+        border-radius:999px;
+        padding:4px;
+        gap:2px;
+        flex-wrap:wrap;
+        margin-bottom:1.75rem;
+    }
+
+
+    .os-tab {
+        font-size:13px;
+        font-weight:600;
+        color:var(--ink2);
+        padding:.5rem 1rem;
+        border-radius:999px;
+        transition:
+            background-color .2s ease,
+            color .2s ease;
+    }
+
+
+    .os-tab-active {
+        background:var(--navy);
+        color:#fff;
+    }
+
+
+    .os-tab:focus-visible {
+        outline:2px solid var(--green);
+        outline-offset:2px;
+    }
+
+
+    .os-role-panel {
+        background:#fff;
+        border:1px solid var(--line);
+        border-radius:12px;
+        padding:1.75rem;
+        display:grid;
+        grid-template-columns:1fr;
+        gap:1.75rem;
+    }
+
+
+    .os-role-panel:focus-visible {
+        outline:2px solid var(--green);
+        outline-offset:2px;
+    }
+
+
+    .os-role-heading {
+        font-family:var(--font-head);
+        font-weight:700;
+        color:var(--navy);
+        font-size:17px;
+        margin-bottom:.5rem;
+    }
+
+
+    .os-role-desc {
+        font-size:13.5px;
+        color:var(--ink2);
+        line-height:1.55;
+        margin-bottom:.9rem;
+    }
+
+
+    .os-role-list {
+        font-size:13.5px;
+        color:var(--navy);
+        display:flex;
+        flex-direction:column;
+        gap:.5rem;
+        padding-left:1.1rem;
+        list-style:disc;
+    }
+
+
+    .os-role-preview {
+        background:var(--offwhite);
+        border-radius:10px;
+        padding:1rem;
+        align-self:start;
+    }
+
+
+    .os-reveal {
+        opacity:0;
+        transform:translateY(14px);
+        animation:osReveal .6s ease-out forwards;
+        animation-play-state:paused;
+    }
+
+
+    .os-reveal.os-in-view {
+        animation-play-state:running;
+    }
+
+
+    @keyframes osReveal {
+
+        to {
+            opacity:1;
+            transform:translateY(0);
+        }
+
+    }
+
+
+    @media (min-width:768px) {
+
+        .os-role-panel {
+            grid-template-columns:1.2fr 1fr;
+        }
+
+    }
+
+
+    @media (max-width:1024px) {
+
+        .os-stagger {
+            grid-template-columns:1fr 1fr;
+        }
+
+        .os-stagger .os-wcard:nth-child(2),
+        .os-stagger .os-wcard:nth-child(4) {
+            margin-top:0;
+        }
+
+        .os-bento {
+            grid-template-columns:1fr 1fr;
+        }
+
+        .os-bento-large {
+            grid-column:span 2;
+            grid-row:auto;
+        }
+
+    }
+
+
+    @media (max-width:640px) {
+
+        .os-stagger {
+            grid-template-columns:1fr;
+        }
+
+        .os-bento {
+            grid-template-columns:1fr;
+        }
+
+        .os-bento-large {
+            grid-column:span 1;
+        }
+
+        .os-command-lines {
+            display:none;
+        }
+
+    }
+
+
+    @media (prefers-reduced-motion:reduce) {
+
+        .os-reveal {
+            opacity:1;
+            transform:none;
+            animation:none;
+        }
+
+        .os-command-lines path {
+            animation:none;
+        }
+
+        .os-metric {
+            transition:none;
+        }
+
+    }
+
+</style>
+
+
+<script>
+
+(function () {
+
+    /* ==========================================
+       HEADER SCROLL EFFECT
+       ========================================== */
+
+    var publicHeader = document.querySelector("header.sticky");
+    var publicNavLinks = document.querySelectorAll(".public-nav a");
+    var publicLogin = document.querySelector(".public-login");
+
+    if (publicHeader) {
+
+        function updatePublicHeader() {
+
+            if (window.scrollY > 50) {
+
+                publicHeader.classList.add("public-header-scrolled");
+
+            } else {
+
+                publicHeader.classList.remove("public-header-scrolled");
+
+            }
+
+        }
+
+        updatePublicHeader();
+
+        window.addEventListener("scroll", updatePublicHeader);
+
+    }
+
+
+    /* ==========================================
+       REVEAL ANIMATIONS
+       ========================================== */
+
+    if ("IntersectionObserver" in window) {
+
+        var revealObserver = new IntersectionObserver(
+
+            function (entries) {
+
+                entries.forEach(function (entry) {
+
+                    if (entry.isIntersecting) {
+
+                        entry.target.classList.add("os-in-view");
+
+                        revealObserver.unobserve(entry.target);
+
+                    }
+
+                });
+
+            },
+
+            {
+                threshold:0.12
+            }
+
+        );
+
+
+        document.querySelectorAll(".os-reveal").forEach(function (el) {
+
+            revealObserver.observe(el);
+
+        });
+
+    } else {
+
+        document.querySelectorAll(".os-reveal").forEach(function (el) {
+
+            el.classList.add("os-in-view");
+
+        });
+
+    }
+
+
+    /* ==========================================
+       INVENTORY NUMBER ANIMATION
+       ========================================== */
+
+    var qty = document.getElementById("osQty");
+
+    if (
+        qty &&
+        window.matchMedia("(prefers-reduced-motion: no-preference)").matches
+    ) {
+
+        var base = 148;
+
+        setInterval(function () {
+
+            base = base - 1;
+
+            if (base < 140) {
+                base = 148;
+            }
+
+            qty.textContent = base;
+
+        }, 2600);
+
+    }
+
+
+    /* ==========================================
+       OPEN ORDERS ANIMATION
+       ========================================== */
+
+    var openOrders = document.getElementById("osOpenOrders");
+
+    if (
+        openOrders &&
+        window.matchMedia("(prefers-reduced-motion: no-preference)").matches
+    ) {
+
+        setInterval(function () {
+
+            var current = parseInt(
+                openOrders.textContent,
+                10
+            );
+
+            openOrders.textContent = current + 1;
+
+            openOrders.parentElement.style.background = "#E3F4EC";
+
+            setTimeout(function () {
+
+                openOrders.parentElement.style.background = "";
+
+            }, 900);
+
+        }, 6000);
+
+    }
+
+
+    /* ==========================================
+       ROLE TABS
+       ========================================== */
+
+    var tabs = Array.prototype.slice.call(
+        document.querySelectorAll(".os-tab")
+    );
+
+
+    var panels = {
+
+        admin: document.getElementById("os-role-admin"),
+
+        sales: document.getElementById("os-role-sales"),
+
+        manager: document.getElementById("os-role-manager"),
+
+        staff: document.getElementById("os-role-staff")
+
+    };
+
+
+    function activateTab(tab) {
+
+        tabs.forEach(function (t) {
+
+            var isActive = t === tab;
+
+            t.classList.toggle(
+                "os-tab-active",
+                isActive
+            );
+
+            t.setAttribute(
+                "aria-selected",
+                isActive ? "true" : "false"
+            );
+
+            t.setAttribute(
+                "tabindex",
+                isActive ? "0" : "-1"
+            );
+
+        });
+
+
+        var role = tab.getAttribute("data-role");
+
+
+        Object.keys(panels).forEach(function (key) {
+
+            if (panels[key]) {
+
+                panels[key].hidden = key !== role;
+
+            }
+
+        });
+
+
+        tab.focus();
+
+    }
+
+
+    tabs.forEach(function (tab, i) {
+
+        tab.addEventListener(
+            "click",
+            function () {
+
+                activateTab(tab);
+
+            }
+        );
+
+
+        tab.addEventListener(
+            "keydown",
+            function (e) {
+
+                var newIndex = null;
+
+
+                if (
+                    e.key === "ArrowRight" ||
+                    e.key === "ArrowDown"
+                ) {
+
+                    newIndex =
+                        (i + 1) %
+                        tabs.length;
+
+                }
+
+                else if (
+                    e.key === "ArrowLeft" ||
+                    e.key === "ArrowUp"
+                ) {
+
+                    newIndex =
+                        (i - 1 + tabs.length) %
+                        tabs.length;
+
+                }
+
+                else if (e.key === "Home") {
+
+                    newIndex = 0;
+
+                }
+
+                else if (e.key === "End") {
+
+                    newIndex =
+                        tabs.length - 1;
+
+                }
+
+
+                if (newIndex !== null) {
+
+                    e.preventDefault();
+
+                    activateTab(
+                        tabs[newIndex]
+                    );
+
+                }
+
+            }
+        );
+
+    });
+
+
+})();
+
+</script>
+
+{% endblock %}
