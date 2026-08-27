@@ -125,7 +125,16 @@
                                            class="px-3 py-1.5 rounded-md text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
                                             Invoice
                                         </a>
-                                        {% if is_admin and order.status == 'completed' %}
+                                        {% if order.can_mark_completed %}
+                                            <form method="post" action="{% url 'order_complete' order.pk %}" class="inline">
+                                                {% csrf_token %}
+                                                <button type="submit"
+                                                    class="px-3 py-1.5 rounded-md text-xs font-medium text-green-600 bg-green-50 hover:bg-green-100 transition-colors">
+                                                    Complete
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        {% if is_admin and order.can_cancel %}
                                             <form method="post" action="{% url 'order_cancel' order.pk %}" class="inline">
                                                 {% csrf_token %}
                                                 <button type="submit"
@@ -175,7 +184,16 @@
                                class="flex-1 text-center px-3 py-2 rounded-md text-xs font-medium text-blue-600 bg-blue-50">
                                 Invoice
                             </a>
-                            {% if is_admin and order.status == 'completed' %}
+                            {% if order.can_mark_completed %}
+                                <form method="post" action="{% url 'order_complete' order.pk %}" class="flex-1">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                        class="w-full px-3 py-2 rounded-md text-xs font-medium text-green-600 bg-green-50">
+                                        Complete
+                                    </button>
+                                </form>
+                            {% endif %}
+                            {% if is_admin and order.can_cancel %}
                                 <form method="post" action="{% url 'order_cancel' order.pk %}" class="flex-1">
                                     {% csrf_token %}
                                     <button type="submit"
