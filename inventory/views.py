@@ -9,6 +9,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from .services import send_po_issued_notification, send_po_response_notification
+
 from core.utils import (
     admin_or_inventory_manager_required,
     admin_required,
@@ -415,6 +417,7 @@ def purchase_order_create(request):
             )
 
         messages.success(request, 'Purchase order created.')
+        send_po_issued_notification(purchase_order)
         return redirect('purchase_order_list')
 
     return render(request, 'inventory/purchase_order_form.html', {
@@ -451,6 +454,7 @@ def supplier_portal_po_accept(request, pk):
         return redirect('supplier_portal_po_list')
 
     po.approve()
+    send_po_response_notification(po, 'accepted')
     messages.success(request, f"PO {po.po_number} accepted.")
     return redirect('supplier_portal_po_list')
 
@@ -468,6 +472,7 @@ def supplier_portal_po_reject(request, pk):
         return redirect('supplier_portal_po_list')
 
     po.cancel()
+    send_po_response_notification(po, 'rejected')
     messages.success(request, f"PO {po.po_number} rejected.")
     return redirect('supplier_portal_po_list')
 
