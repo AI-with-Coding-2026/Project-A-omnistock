@@ -5,6 +5,11 @@ from django.utils import timezone
 
 from orders.models import Order
 from .models import User
+from core.utils import (
+    admin_required,
+    admin_or_inventory_manager_required,
+    staff_or_admin_required,
+)
 
 
 class RoleBasedLoginViewTests(TestCase):
@@ -559,3 +564,62 @@ class RouteProtectionTests(TestCase):
         response = protected_view(request)
 
         self.assertEqual(response.status_code, 302)
+    def test_admin_or_inventory_manager_required_allows_admin(self):
+        @admin_or_inventory_manager_required
+        def protected_view(request):
+            return HttpResponse("allowed")
+
+        self.client.force_login(self.admin)
+
+        request = self.client.request().wsgi_request
+        request.user = self.admin
+
+        response = protected_view(request)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_admin_or_inventory_manager_required_allows_inventory_manager(self):
+        inventory_manager = User.objects.create_user(
+            username="protection_inventory_manager",
+            password="password123",
+            role=User.ROLE_INVENTORY_MANAGER,
+        )
+
+        @admin_or_inventory_manager_required
+        def protected_view(request):
+            return HttpResponse("allowed")
+
+        self.client.force_login(inventory_manager)
+
+        request = self.client.request().wsgi_request
+        request.user = inventory_manager
+
+        response = protected_view(request)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_admin_or_inventory_manager_required_rejects_sales_rep(self):
+        @admin_or_inventory_manager_required
+        def protected_view(request):
+            return HttpResponse("allowed")
+
+        self.client.force_login(self.sales_rep)
+
+        request = self.client.request().wsgi_request
+        request.user = self.sales_rep
+
+        with self.assertRaises(PermissionDenied):
+            protected_view(request)
+
+    def test_admin_or_inventory_manager_required_rejects_customer(self):
+        @admin_or_inventory_manager_required
+        def protected_view(request):
+            return HttpResponse("allowed")
+
+        self.client.force_login(self.customer)
+
+        request = self.client.request().wsgi_request
+        request.user = self.customer
+
+        with self.assertRaises(PermissionDenied):
+            protected_view(request)
