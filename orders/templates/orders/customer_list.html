@@ -52,7 +52,7 @@
                                 <td class="whitespace-nowrap px-6 py-4 text-gray-600">{{ customer.phone|default:"-" }}</td>
                                 <td class="max-w-xs px-6 py-4 text-gray-600">{{ customer.address|default:"-" }}</td>
                                 <td class="whitespace-nowrap px-6 py-4 text-center">
-                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ customer.orders.count }}</span>
+                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ customer.order_count }}</span>
                                 </td>
                                 <td class="whitespace-nowrap px-6 py-4 text-right">
                                     <a href="{% url 'customer_detail' customer.pk %}" class="font-medium text-slate-700 hover:text-slate-950 hover:underline">View</a>

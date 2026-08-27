@@ -38,7 +38,7 @@
                     <select name="customer" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900">
                         <option value="">Select a customer</option>
                         {% for customer in customers %}
-                            <option value="{{ customer.id }}">{{ customer.name }} ({{ customer.email }})</option>
+                            <option value="{{ customer.id }}" {% if form.customer.value|stringformat:"s" == customer.id|stringformat:"s" %}selected{% endif %}>{{ customer.name }} ({{ customer.email }})</option>
                         {% endfor %}
                     </select>
                     {% for error in form.customer.errors %}

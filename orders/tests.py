@@ -1458,6 +1458,32 @@ class CustomerCRUDTests(TestCase):
             f"{reverse('login')}?next={reverse('customer_list')}",
         )
 
+    def test_admin_can_create_customer(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('customer_create'), {
+            'name': 'Admin Created Customer',
+            'email': 'adminmade@example.com',
+            'phone': '555-0300',
+            'address': '789 Pine St',
+        })
+        self.assertRedirects(response, reverse('customer_list'))
+        self.assertTrue(Customer.objects.filter(email='adminmade@example.com').exists())
+
+    def test_admin_can_edit_customer(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse('customer_update', args=[self.existing.pk]),
+            {
+                'name': 'Admin Updated Name',
+                'email': 'existing@example.com',
+                'phone': '555-8888',
+                'address': '',
+            },
+        )
+        self.assertRedirects(response, reverse('customer_list'))
+        self.existing.refresh_from_db()
+        self.assertEqual(self.existing.name, 'Admin Updated Name')
+
 
 class OrderCustomerIntegrationTests(TestCase):
     def setUp(self):
@@ -1581,6 +1607,57 @@ class OrderCustomerIntegrationTests(TestCase):
             Customer.objects.filter(email=self.existing_customer.email).count(),
             1,
         )
+
+    def test_missing_inline_customer_details_creates_neither_customer_nor_order(self):
+        initial_customer_count = Customer.objects.count()
+        initial_order_count = Order.objects.count()
+
+        response = self.client.post(reverse('order_create'), {
+            'new_customer_name': 'Incomplete Customer',
+            # no new_customer_email provided
+            'items[][product]': [str(self.product.id)],
+            'items[][quantity]': ['1'],
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Customer.objects.count(), initial_customer_count)
+        self.assertEqual(Order.objects.count(), initial_order_count)
+
+    def test_invalid_inline_customer_email_creates_neither_customer_nor_order(self):
+        initial_customer_count = Customer.objects.count()
+        initial_order_count = Order.objects.count()
+
+        response = self.client.post(reverse('order_create'), {
+            'new_customer_name': 'Bad Email Customer',
+            'new_customer_email': 'not-a-valid-email',
+            'items[][product]': [str(self.product.id)],
+            'items[][quantity]': ['1'],
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Customer.objects.count(), initial_customer_count)
+        self.assertEqual(Order.objects.count(), initial_order_count)
+        self.assertFalse(Customer.objects.filter(name='Bad Email Customer').exists())
+
+    def test_customer_selection_persists_after_validation_error(self):
+        """
+        If order creation fails validation (e.g. insufficient stock), the
+        customer the user selected should still be shown as selected when
+        the form re-renders, not silently reset.
+        """
+        response = self.client.post(reverse('order_create'), {
+            'customer': self.existing_customer.id,
+            'items[][product]': [str(self.product.id)],
+            'items[][quantity]': ['9999'],  # exceeds stock, triggers re-render
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'value="{self.existing_customer.id}" selected',
+        )
+
+
 class ReportsAndExportTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(

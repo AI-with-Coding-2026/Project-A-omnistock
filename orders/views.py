@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from django.contrib import messages
 from django.db import IntegrityError, transaction
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -24,7 +24,9 @@ ORDER_CANCEL_REDIRECT = 'order_list'
 
 @admin_or_sales_rep_required
 def customer_list(request):
-    customers = Customer.objects.all()
+    customers = Customer.objects.annotate(
+        order_count=Count('orders'),
+    ).prefetch_related('orders')
     return render(request, 'orders/customer_list.html', {'customers': customers})
 
 
@@ -57,7 +59,10 @@ def customer_update(request, pk):
 
 @admin_or_sales_rep_required
 def customer_detail(request, pk):
-    customer = get_object_or_404(Customer, pk=pk)
+    customer = get_object_or_404(
+        Customer.objects.prefetch_related('orders'),
+        pk=pk,
+    )
     return render(request, 'orders/customer_detail.html', {'customer': customer})
 
 
@@ -231,7 +236,7 @@ def order_create(request):
                 'customers': customers,
             })
 
-        # ─Check customer selection is valid WITHOUT creating anything yet
+        # Check customer selection is valid WITHOUT creating anything yet
         new_customer_name = request.POST.get('new_customer_name', '').strip()
         new_customer_email = request.POST.get('new_customer_email', '').strip()
         existing_customer = form.cleaned_data.get('customer')
