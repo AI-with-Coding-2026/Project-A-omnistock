@@ -81,12 +81,9 @@
                    transition-transform duration-200 ease-out
                    print:hidden">
 
-            <div class="flex h-[60px] items-center gap-3 border-b border-slate-800 px-6">
-                <div class="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center font-bold text-sm">
-                    O
-                </div>
-                <span class="text-lg font-semibold tracking-tight">OmniStock</span>
-            </div>
+        <div class="flex h-[60px] items-center px-6 border-b border-slate-800">
+            <img src="{% static 'core/logo.svg' %}" alt="OmniStock Logo" class="h-8 w-auto">
+        </div>
 
             <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
 
@@ -142,7 +139,22 @@
                         <circle cx="6" cy="16" r="1.5" />
                         <circle cx="14" cy="16" r="1.5" />
                     </svg>
-                    Suppliers
+                     Suppliers
+                </a>
+
+                {% url 'purchase_order_list' as po_url %}
+                <a href="{{ po_url }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                              transition-colors border-l-2
+                              {% if request.resolver_match.url_name == 'purchase_order_list' %}
+                                  bg-slate-800 border-slate-100 text-white
+                              {% else %}
+                                  border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
+                              {% endif %}">
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                        stroke-width="1.6">
+                        <path d="M3 3h14v14H3z"/><path d="M7 8h6M7 11h6M7 14h3"/>
+                    </svg>
+                    Purchase Orders
                 </a>
 
                 {% else %}
@@ -223,19 +235,22 @@
                     </a>
                 {% endif %}
 
-                {% if reports_ready and request.user.role == 'ADMIN' %}
-                <a href="{% url 'reports' %}"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-
-                          transition-colors border-l-2 border-transparent text-slate-300
-                          hover:bg-slate-800 hover:text-white">
-                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                        stroke-width="1.6">
-                        <path d="M4 4h12v12H4z" />
-                        <path d="M7 8h6M7 11h6M7 14h3" />
-                    </svg>
-                    Reports
-                </a>
+                {% if user.role == 'ADMIN' %}
+                    {% url 'reports' as reports_url %}
+                    <a href="{{ reports_url }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                              transition-colors border-l-2
+                              {% if request.resolver_match.url_name == 'reports' %}
+                                  bg-slate-800 border-slate-100 text-white
+                              {% else %}
+                                  border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
+                              {% endif %}">
+                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+                            <path d="M4 4h12v12H4z"/>
+                            <path d="M7 8h6M7 11h6M7 14h3"/>
+                        </svg>
+                        Reports
+                    </a>
                 {% endif %}
 
 
@@ -251,15 +266,7 @@
                     Invoices
                 </a>
 
-                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                              border-l-2 border-transparent text-amber-300
-                              hover:bg-slate-800 hover:text-white transition-colors">
-                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                        stroke-width="1.6">
-                        <path d="M3 17V9M9 17V5M15 17v-7" />
-                    </svg>
-                    Executive Reports
-                </a>
+
 
                 {% endif %}
 
@@ -339,7 +346,12 @@
                     </div>
                     {% endfor %}
                 </div>
-                {% endif %}
+                                {% endif %}
+
+                <div class="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
+                    Azure deployment demo: version 2 is live.
+                </div>
+
                 {% block content %}
                 {% endblock %}
             </main>
@@ -347,7 +359,7 @@
             <!-- FOOTER -->
             <footer class="bg-white border-t border-gray-200 px-8 py-4
                            text-sm text-gray-400 text-center print:hidden">
-                &copy; 2026 OmniStock. All rights reserved.
+                                &copy; 2026 OmniStock. All rights reserved. v2
             </footer>
 
         </div>
@@ -360,11 +372,8 @@
     <div class="min-h-screen flex flex-col">
 
         <header class="bg-slate-900 text-white px-8 py-5">
-            <div class="max-w-7xl mx-auto flex items-center gap-3">
-                <div class="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center font-bold text-sm">
-                    O
-                </div>
-                <span class="text-2xl font-semibold tracking-tight">OmniStock</span>
+            <div class="max-w-7xl mx-auto flex items-center">
+                <img src="{% static 'core/logo.svg' %}" alt="OmniStock Logo" class="h-10 w-auto">
             </div>
         </header>
 
@@ -389,7 +398,7 @@
 
         <footer class="bg-white border-t border-gray-200 px-8 py-4
                        text-sm text-gray-400 text-center">
-            &copy; 2026 OmniStock. All rights reserved.
+            &copy; 2026 OmniStock. All rights reserved. v2
         </footer>
 
     </div>

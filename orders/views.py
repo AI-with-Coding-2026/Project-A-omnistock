@@ -1,9 +1,10 @@
+import csv
 import logging
 from collections import defaultdict
 
 from django.contrib import messages
 from django.db import IntegrityError, transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -19,7 +20,6 @@ from .pdf import render_html_to_pdf
 logger = logging.getLogger(__name__)
 
 ORDER_CANCEL_REDIRECT = 'order_list'
-
 
 
 @admin_or_sales_rep_required
@@ -61,12 +61,74 @@ def customer_detail(request, pk):
     return render(request, 'orders/customer_detail.html', {'customer': customer})
 
 
+@admin_required
+def export_orders_csv(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="orders.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Order #',
+        'Customer',
+        'Sales Rep',
+        'Total',
+        'Status',
+        'Created At',
+    ])
+
+    orders = Order.objects.filter(
+        status=Order.STATUS_COMPLETED,
+    ).select_related('user')
+    for order in orders:
+        writer.writerow([
+            order.order_number,
+            order.customer_name,
+            order.user.username,
+            order.total_amount,
+            order.status,
+            order.created_at.isoformat(),
+        ])
+
+    return response
+
 
 @staff_or_admin_required
 def order_list(request):
+    status = request.GET.get('status', '').strip()
+    search = request.GET.get('search', '').strip()
+    sort = request.GET.get('sort', 'desc').strip()
+
     orders = Order.objects.select_related('user').prefetch_related('items__product').all()
+
+    # 1. Filter by Status (Pending, Completed, Cancelled)
+    if status and status in [choice[0] for choice in Order.STATUS_CHOICES]:
+        orders = orders.filter(status=status)
+
+    # 2. Search across Order ID/Number, Customer Name, and Product Name
+    if search:
+        search_filter = (
+            Q(customer_name__icontains=search) |
+            Q(items__product__name__icontains=search)
+        )
+        if hasattr(Order, 'order_number'):
+            search_filter |= Q(order_number__icontains=search)
+        if search.isdigit():
+            search_filter |= Q(id=int(search))
+
+        orders = orders.filter(search_filter).distinct()
+
+    # 3. Sort by creation date (asc/desc)
+    if sort == 'asc':
+        orders = orders.order_by('created_at')
+    else:
+        orders = orders.order_by('-created_at')
+
     return render(request, 'orders/order_list.html', {
         'orders': orders,
+        'status_choices': Order.STATUS_CHOICES,
+        'selected_status': status,
+        'search_query': search,
+        'selected_sort': sort,
         'is_admin': request.user.role == 'ADMIN',
     })
 
@@ -95,7 +157,8 @@ def order_detail(request, pk):
         pk=pk,
     )
     return render(request, 'orders/order_detail.html', {
-        'order': order
+        'order': order,
+        'is_admin': request.user.role == 'ADMIN',
     })
 
 
@@ -168,7 +231,7 @@ def order_create(request):
                 'customers': customers,
             })
 
-        # ─Check customer selection is valid WITHOUT creating anything yet 
+        # ─Check customer selection is valid WITHOUT creating anything yet
         new_customer_name = request.POST.get('new_customer_name', '').strip()
         new_customer_email = request.POST.get('new_customer_email', '').strip()
         existing_customer = form.cleaned_data.get('customer')
@@ -213,7 +276,7 @@ def order_create(request):
                 'customers': customers,
             })
 
-                #  All validation passed: now safe to create the Customer if needed 
+        # All validation passed: now safe to create the Customer if needed
         if existing_customer:
             customer = existing_customer
         else:
@@ -285,7 +348,8 @@ def order_create(request):
         'products': products,
         'customers': customers,
     })
-    
+
+
 @staff_or_admin_required
 @require_POST
 @transaction.atomic

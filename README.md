@@ -133,9 +133,44 @@ python manage.py migrate
 
 ```
 
+### 7. Seed Demo Data
+
+After running the database migrations, populate the database with realistic development demo data:
+
+```bash
+python manage.py seed_db
+```
+
+The command creates:
+
+* 4 active demo users across Admin, Sales Rep, Inventory Manager, and Staff roles
+* 10 suppliers with valid phone numbers
+* 40 products, including low-stock products
+* 30 historical orders across Pending, Completed, and Cancelled statuses
+
+The command is safe to run multiple times in a development environment. Existing demo records are updated or refreshed instead of being duplicated.
+
+#### Demo Login Accounts
+
+All demo accounts use the password:
+
+```text
+demo12345
+```
+
+| Role              | Username            | Password    |
+| ----------------- | ------------------- | ----------- |
+| Admin             | `admin`             | `demo12345` |
+| Sales Rep         | `sales_rep`         | `demo12345` |
+| Inventory Manager | `inventory_manager` | `demo12345` |
+| Staff             | `staff`             | `demo12345` |
+
+Use these accounts to test the different role-based views and permissions in OmniStock.
+
+After seeding the database, start the development server:
 
 
-### 7. Start the Development Server
+### 8. Start the Development Server
 
 ```bash
 python manage.py runserver
