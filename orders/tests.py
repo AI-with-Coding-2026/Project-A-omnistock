@@ -1451,6 +1451,14 @@ class CustomerCRUDTests(TestCase):
         response = self.client.get(reverse('customer_detail', args=[self.existing.pk]))
         self.assertEqual(response.status_code, 403)
 
+    def test_delete_confirmation_page_renders(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('customer_delete', args=[self.existing.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Delete customer?')
+        self.assertContains(response, self.existing.name)
+        self.assertContains(response, 'csrfmiddlewaretoken')
+
     def test_admin_can_delete_customer_with_no_orders(self):
         self.client.force_login(self.admin)
         response = self.client.post(reverse('customer_delete', args=[self.existing.pk]))
