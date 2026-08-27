@@ -1158,3 +1158,212 @@ class PurchaseOrderListViewTests(TestCase):
         self.client.force_login(self.inventory_manager)
         response = self.client.get(reverse('purchase_order_list'))
         self.assertEqual(response.status_code, 200)
+
+class PurchaseOrderDeliveryTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='deliver_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.client.force_login(self.admin)
+
+        self.supplier = Supplier.objects.create(
+            name='Deliver Supplier',
+            email='deliver@test.com',
+            phone='123456789',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='Deliver Product',
+            unit_price=Decimal('50.00'),
+            stock_quantity=10,
+        )
+        self.po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+            status=PurchaseOrder.STATUS_RECEIVED,
+        )
+        self.item = PurchaseOrderItem.objects.create(
+            purchase_order=self.po,
+            product=self.product,
+            quantity=5,
+            unit_cost=Decimal('45.00'),
+        )
+
+    def test_mark_delivered_increments_stock(self):
+        response = self.client.post(reverse('purchase_order_deliver', args=[self.po.pk]))
+        self.assertRedirects(response, reverse('purchase_order_list'))
+        
+        self.po.refresh_from_db()
+        self.assertEqual(self.po.status, PurchaseOrder.STATUS_DELIVERED)
+
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 15)
+
+    def test_mark_delivered_twice_fails_safely(self):
+        self.client.post(reverse('purchase_order_deliver', args=[self.po.pk]))
+        
+        # Second attempt
+        response = self.client.post(reverse('purchase_order_deliver', args=[self.po.pk]), follow=True)
+        
+        self.po.refresh_from_db()
+        self.assertEqual(self.po.status, PurchaseOrder.STATUS_DELIVERED)
+
+        # Stock should still be 15, not 20
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 15)
+        
+        messages = list(response.context['messages'])
+        self.assertTrue(any('Cannot transition purchase order' in str(m) for m in messages))
+
+    def test_inventory_manager_can_deliver(self):
+        inv_manager = User.objects.create_user(
+            username='inv_mgr_delivery',
+            password='password123',
+            role=User.ROLE_INVENTORY_MANAGER,
+        )
+        self.client.force_login(inv_manager)
+        
+        response = self.client.post(reverse('purchase_order_deliver', args=[self.po.pk]))
+        self.assertRedirects(response, reverse('purchase_order_list'))
+        
+        self.po.refresh_from_db()
+        self.assertEqual(self.po.status, PurchaseOrder.STATUS_DELIVERED)
+
+
+class SupplierFilterSearchTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='filter_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.client.force_login(self.admin)
+
+        self.supplier1 = Supplier.objects.create(
+            name='Alpha Co',
+            email='alpha@test.com',
+            phone='111222333',
+            address='123 Main St',
+            is_active=True
+        )
+        self.supplier2 = Supplier.objects.create(
+            name='Beta Ltd',
+            email='beta@test.com',
+            phone='444555666',
+            address='456 Broad Way',
+            is_active=False
+        )
+        self.url = reverse('supplier_index')
+
+    def test_filter_active(self):
+        response = self.client.get(self.url, {'status': 'active'})
+        suppliers = list(response.context['suppliers'])
+        self.assertEqual(len(suppliers), 1)
+        self.assertEqual(suppliers[0], self.supplier1)
+
+    def test_filter_inactive(self):
+        response = self.client.get(self.url, {'status': 'inactive'})
+        suppliers = list(response.context['suppliers'])
+        self.assertEqual(len(suppliers), 1)
+        self.assertEqual(suppliers[0], self.supplier2)
+
+    def test_search_by_phone(self):
+        response = self.client.get(self.url, {'q': '444555'})
+        suppliers = list(response.context['suppliers'])
+        self.assertEqual(len(suppliers), 1)
+        self.assertEqual(suppliers[0], self.supplier2)
+
+    def test_search_by_address(self):
+        response = self.client.get(self.url, {'q': 'Broad Way'})
+        suppliers = list(response.context['suppliers'])
+        self.assertEqual(len(suppliers), 1)
+        self.assertEqual(suppliers[0], self.supplier2)
+
+    def test_combined_filter_and_search(self):
+        response = self.client.get(self.url, {'status': 'inactive', 'q': 'Broad'})
+        suppliers = list(response.context['suppliers'])
+        self.assertEqual(len(suppliers), 1)
+        self.assertEqual(suppliers[0], self.supplier2)
+
+
+class PurchaseOrderInvalidDeliveryTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='invalid_deliver_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.sales_rep = User.objects.create_user(
+            username='invalid_deliver_sales',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        
+        self.supplier = Supplier.objects.create(
+            name='Invalid Deliver Supplier',
+            email='invalid_deliver@test.com',
+            phone='123456789',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='Invalid Deliver Product',
+            unit_price=Decimal('50.00'),
+            stock_quantity=10,
+        )
+
+    def test_pending_po_cannot_be_delivered(self):
+        self.client.force_login(self.admin)
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+            status=PurchaseOrder.STATUS_PENDING,
+        )
+        PurchaseOrderItem.objects.create(
+            purchase_order=po, product=self.product, quantity=5, unit_cost=Decimal('45.00')
+        )
+        
+        response = self.client.post(reverse('purchase_order_deliver', args=[po.pk]), follow=True)
+        po.refresh_from_db()
+        self.assertEqual(po.status, PurchaseOrder.STATUS_PENDING)
+        
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 10)
+
+    def test_cancelled_po_cannot_be_delivered(self):
+        self.client.force_login(self.admin)
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+            status=PurchaseOrder.STATUS_CANCELLED,
+        )
+        PurchaseOrderItem.objects.create(
+            purchase_order=po, product=self.product, quantity=5, unit_cost=Decimal('45.00')
+        )
+        
+        response = self.client.post(reverse('purchase_order_deliver', args=[po.pk]), follow=True)
+        po.refresh_from_db()
+        self.assertEqual(po.status, PurchaseOrder.STATUS_CANCELLED)
+        
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 10)
+
+    def test_non_admin_cannot_post_delivery(self):
+        self.client.force_login(self.sales_rep)
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+            status=PurchaseOrder.STATUS_RECEIVED,
+        )
+        PurchaseOrderItem.objects.create(
+            purchase_order=po, product=self.product, quantity=5, unit_cost=Decimal('45.00')
+        )
+        
+        response = self.client.post(reverse('purchase_order_deliver', args=[po.pk]))
+        self.assertEqual(response.status_code, 403)
+        
+        po.refresh_from_db()
+        self.assertEqual(po.status, PurchaseOrder.STATUS_RECEIVED)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 10)

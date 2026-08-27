@@ -28,12 +28,17 @@
         </div>
 
         <form method="get" action="{% url 'supplier_index' %}" class="mb-4 flex gap-2">
+            <select name="status" class="form-control max-w-[150px]">
+                <option value="all" {% if status == 'all' %}selected{% endif %}>All Status</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
             <input 
                 type="text" 
                 name="q" 
                 value="{{ q }}" 
-                placeholder="Search by name or email..."
-                class="form-control"
+                placeholder="Search by name, email, phone, or address..."
+                class="form-control flex-1"
             >
             <button type="submit" class="btn btn-primary">Search</button>
             {% if q %}
@@ -60,9 +65,28 @@
                     <tbody class="divide-y divide-gray-100 bg-white">
                         {% for supplier in suppliers %}
                             <tr class="transition hover:bg-gray-50">
-                                <td class="whitespace-nowrap px-6 py-4 font-semibold text-gray-900">{{ supplier.name }}</td>
-                                <td class="whitespace-nowrap px-6 py-4 text-gray-600">{{ supplier.email|default:"-" }}</td>
-                                <td class="whitespace-nowrap px-6 py-4 text-gray-600">{{ supplier.phone|default:"-" }}</td>
+                                <td class="whitespace-nowrap px-6 py-4 font-semibold text-gray-900">
+                                    {{ supplier.name }}
+                                    {% if supplier.is_active %}
+                                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Active</span>
+                                    {% else %}
+                                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="whitespace-nowrap px-6 py-4 text-gray-600">
+                                    {% if supplier.email %}
+                                        <a href="mailto:{{ supplier.email }}" class="text-blue-600 hover:underline">{{ supplier.email }}</a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="whitespace-nowrap px-6 py-4 text-gray-600">
+                                    {% if supplier.phone %}
+                                        <a href="tel:{{ supplier.phone }}" class="text-blue-600 hover:underline">{{ supplier.phone }}</a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
                                 <td class="max-w-xs px-6 py-4 text-gray-600">{{ supplier.address|default:"-" }}</td>
                                 <td class="whitespace-nowrap px-6 py-4 text-center">
                                     <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ supplier.products.count }}</span>

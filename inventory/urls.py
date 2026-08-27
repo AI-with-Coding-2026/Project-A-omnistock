@@ -16,4 +16,5 @@ urlpatterns = [
 
     path('purchase-orders/', views.purchase_order_list, name='purchase_order_list'),
     path('purchase-orders/create/', views.purchase_order_create, name='purchase_order_create'),
+    path('purchase-orders/<int:pk>/deliver/', views.purchase_order_deliver, name='purchase_order_deliver'),
 ]

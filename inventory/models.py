@@ -19,6 +19,7 @@ class Supplier(models.Model):
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=50, blank=False , null=False)
     address = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,19 +68,22 @@ class PurchaseOrder(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_APPROVED = 'approved'
     STATUS_RECEIVED = 'received'
+    STATUS_DELIVERED = 'delivered'
     STATUS_CANCELLED = 'cancelled'
 
     STATUS_CHOICES = [
         (STATUS_PENDING, 'Pending'),
         (STATUS_APPROVED, 'Approved'),
         (STATUS_RECEIVED, 'Received'),
+        (STATUS_DELIVERED, 'Delivered'),
         (STATUS_CANCELLED, 'Cancelled'),
     ]
 
     VALID_TRANSITIONS = {
         STATUS_PENDING: {STATUS_APPROVED, STATUS_CANCELLED},
         STATUS_APPROVED: {STATUS_RECEIVED, STATUS_CANCELLED},
-        STATUS_RECEIVED: set(),
+        STATUS_RECEIVED: {STATUS_DELIVERED},
+        STATUS_DELIVERED: set(),
         STATUS_CANCELLED: set(),
     }
 
@@ -97,13 +101,16 @@ class PurchaseOrder(models.Model):
         return f'{self.po_number} — {self.supplier.name}'
 
     def can_approve(self):
-        return self.status == self.STATUS_PENDING
+        return self.can_transition_to(self.STATUS_APPROVED)
 
     def can_receive(self):
-        return self.status == self.STATUS_APPROVED
+        return self.can_transition_to(self.STATUS_RECEIVED)
+
+    def can_deliver(self):
+        return self.can_transition_to(self.STATUS_DELIVERED)
 
     def can_cancel(self):
-        return self.status in [self.STATUS_PENDING, self.STATUS_APPROVED]
+        return self.can_transition_to(self.STATUS_CANCELLED)
 
     def can_transition_to(self, target_status):
         allowed = self.VALID_TRANSITIONS.get(self.status, set())
@@ -142,6 +149,27 @@ class PurchaseOrder(models.Model):
         self.status = self.STATUS_RECEIVED
         if save:
             self.save(update_fields=['status', 'updated_at'])
+
+    @transaction.atomic
+    def mark_delivered(self):
+        # We need to lock the row to prevent race conditions (double-incrementing stock)
+        po = PurchaseOrder.objects.select_for_update().get(pk=self.pk)
+        if not po.can_deliver():
+            raise InvalidPurchaseOrderTransitionError(
+                f"Cannot transition purchase order #{self.pk or self.po_number} "
+                f"from '{po.status}' to '{self.STATUS_DELIVERED}'."
+            )
+        
+        po.status = self.STATUS_DELIVERED
+        po.save(update_fields=['status', 'updated_at'])
+        self.status = po.status
+        self.updated_at = po.updated_at
+            
+        # Increment stock for every line item using F() expressions for atomicity
+        for item in po.items.all():
+            Product.objects.filter(pk=item.product_id).update(
+                stock_quantity=F('stock_quantity') + item.quantity
+            )
 
     def cancel(self, save=True):
         if not self.can_cancel():

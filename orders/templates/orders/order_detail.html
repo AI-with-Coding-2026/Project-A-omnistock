@@ -11,7 +11,7 @@
             <h2 class="mt-1 text-2xl font-bold text-gray-900">{{ order.order_number }}</h2>
         </div>
         <div class="flex items-center gap-3">
-            {% if order.can_mark_completed %}
+            {% if order.status == 'pending' or order.status == order.STATUS_PENDING %}
             <form method="post" action="{% url 'order_complete' order.id %}" class="inline">
                 {% csrf_token %}
                 <button type="submit"
@@ -21,21 +21,18 @@
             </form>
             {% endif %}
 
-            {% if is_admin and order.can_cancel %}
-            <form method="post" action="{% url 'order_cancel' order.id %}" class="inline">
-                {% csrf_token %}
-                <button type="submit"
-                        class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700 transition-colors shadow-sm">
-                    Cancel Order
-                </button>
-            </form>
-            {% endif %}
-
             <a href="{% url 'order_list' %}"
                class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                 ← Back to orders
             </a>
         </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <a href="{% url 'order_list' %}"
+           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            ← Back to orders
+        </a>
     </div>
 
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">

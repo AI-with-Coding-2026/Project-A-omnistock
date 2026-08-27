@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import BooleanField, Case, Count, F, ProtectedError, Q, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 from django.urls import reverse
 
 from core.utils import (
@@ -153,17 +154,27 @@ def supplier_list(request):
     Supports search by name/email and shows product count per supplier.
     """
     q = request.GET.get('q', '').strip()
+    status = request.GET.get('status', 'all')
     role = request.user.role
     suppliers = Supplier.objects.annotate(product_count=Count('products'))
 
+    if status == 'active':
+        suppliers = suppliers.filter(is_active=True)
+    elif status == 'inactive':
+        suppliers = suppliers.filter(is_active=False)
+
     if q:
         suppliers = suppliers.filter(
-            Q(name__icontains=q) | Q(email__icontains=q)
+            Q(name__icontains=q) | 
+            Q(email__icontains=q) |
+            Q(phone__icontains=q) |
+            Q(address__icontains=q)
         )
 
     return render(request, 'inventory/supplier_list.html', {
         'suppliers': suppliers,
         'q': q,
+        'status': status,
         'is_admin': role == 'ADMIN',
         'can_manage_suppliers': role in ('ADMIN', 'INVENTORY_MANAGER'),
     })
@@ -236,6 +247,18 @@ def purchase_order_list(request):
         'purchase_orders': purchase_orders,
         'is_admin': request.user.role == 'ADMIN',
     })
+
+
+@admin_or_inventory_manager_required
+@require_POST
+def purchase_order_deliver(request, pk):
+    purchase_order = get_object_or_404(PurchaseOrder, pk=pk)
+    try:
+        purchase_order.mark_delivered()
+        messages.success(request, f'Purchase order {purchase_order.po_number} marked as Delivered. Stock updated successfully.')
+    except InvalidPurchaseOrderTransitionError as e:
+        messages.error(request, str(e))
+    return redirect('purchase_order_list')
 
 
 @admin_or_inventory_manager_required
