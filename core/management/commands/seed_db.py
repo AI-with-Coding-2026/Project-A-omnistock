@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from faker import Faker
-from inventory.models import Product, Supplier
+from inventory.models import Product, PurchaseOrder, PurchaseOrderItem, Supplier
 from orders.models import Order, OrderItem
 
 
@@ -40,6 +40,8 @@ class Command(BaseCommand):
             suppliers = self.seed_suppliers(fake)
             products = self.seed_products(fake, suppliers)
             orders = self.seed_orders(fake, users, products)
+            supplier_users = self.seed_supplier_users(suppliers)
+            purchase_orders = self.seed_purchase_orders(users, suppliers, products)
 
         low_stock_count = Product.low_stock().count()
 
@@ -50,11 +52,16 @@ class Command(BaseCommand):
                 f"{len(suppliers)} suppliers, "
                 f"{len(products)} products "
                 f"({low_stock_count} low-stock), "
-                f"{len(orders)} orders."
+                f"{len(orders)} orders, "
+                f"{len(supplier_users)} supplier portal accounts, "
+                f"{len(purchase_orders)} purchase orders."
             )
         )
         self.stdout.write(
             "Demo login: admin / demo12345"
+        )
+        self.stdout.write(
+            "Supplier portal demo logins: supplier_portal_1 / demo12345, supplier_portal_2 / demo12345"
         )
 
     def seed_users(self):
@@ -178,6 +185,83 @@ class Command(BaseCommand):
             products.append(product)
 
         return products
+
+    def seed_supplier_users(self, suppliers):
+        """
+        Links the first two demo suppliers to Supplier-role portal accounts,
+        so the isolation between suppliers can be demonstrated out of the box.
+        """
+        User = get_user_model()
+
+        demo_supplier_logins = [
+            {
+                "username": "supplier_portal_1",
+                "email": "supplier-portal-1@omnistock.demo",
+                "first_name": "Priya",
+                "last_name": "Vendor",
+            },
+            {
+                "username": "supplier_portal_2",
+                "email": "supplier-portal-2@omnistock.demo",
+                "first_name": "Chen",
+                "last_name": "Vendor",
+            },
+        ]
+
+        supplier_users = []
+
+        for supplier, data in zip(suppliers[:2], demo_supplier_logins):
+            user, _ = User.objects.get_or_create(
+                username=data["username"],
+                defaults={**data, "role": User.ROLE_SUPPLIER},
+            )
+            user.email = data["email"]
+            user.first_name = data["first_name"]
+            user.last_name = data["last_name"]
+            user.role = User.ROLE_SUPPLIER
+            user.is_active = True
+            user.set_password(self.DEMO_PASSWORD)
+            user.save()
+
+            supplier.user = user
+            supplier.save(update_fields=["user"])
+
+            supplier_users.append(user)
+
+        return supplier_users
+
+    def seed_purchase_orders(self, users, suppliers, products):
+        """
+        Creates a pending PO for each of the first two demo suppliers, so the
+        supplier portal has something to accept/reject out of the box.
+        """
+        admin_user = next(u for u in users if u.username == "admin")
+        purchase_orders = []
+
+        for number, supplier in enumerate(suppliers[:2], start=1):
+            po_number = f"DEMO-PO-{number:04d}"
+            po, _ = PurchaseOrder.objects.update_or_create(
+                po_number=po_number,
+                defaults={
+                    "supplier": supplier,
+                    "created_by": admin_user,
+                    "status": PurchaseOrder.STATUS_PENDING,
+                },
+            )
+
+            po.items.all().delete()
+
+            product = products[(number - 1) % len(products)]
+            PurchaseOrderItem.objects.create(
+                purchase_order=po,
+                product=product,
+                quantity=5 + number,
+                unit_cost=product.unit_price,
+            )
+
+            purchase_orders.append(po)
+
+        return purchase_orders
 
     def seed_orders(self, fake, users, products):
         orders = []
