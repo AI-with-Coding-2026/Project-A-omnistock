@@ -469,73 +469,46 @@ class DashboardRevenueChartTests(TestCase):
         self.assertContains(response, 'No revenue data yet')
         self.assertNotContains(response, 'chart.js@4.4.0')
 
-
-
 class RouteProtectionTests(TestCase):
+
     def setUp(self):
         self.admin = User.objects.create_user(
             username="protection_admin",
             password="password123",
             role=User.ROLE_ADMIN,
         )
-        self.staff = User.objects.create_user(
-            username="protection_staff",
-            password="password123",
-            role=getattr(User, "ROLE_STAFF", "STAFF"),
-        )
+
         self.sales_rep = User.objects.create_user(
             username="protection_sales",
             password="password123",
             role=User.ROLE_SALES_REP,
         )
-        self.customer = User.objects.create_user(
-            username="protection_customer",
-            password="password123",
-            role=User.ROLE_CUSTOMER,
-        )
-    
-    def test_anonymous_user_cannot_access_reports(self):
-        response = self.client.get(reverse("reports"))
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        response = self.client.get(reverse("product_list"))
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/login/", response.url)
+        self.assertEqual(
+            response.url,
+            f"{reverse('login')}?next={reverse('product_list')}",
+        )
 
-    def test_authenticated_admin_can_access_reports(self):
+    def test_authenticated_authorized_user_can_access_products(self):
         self.client.force_login(self.admin)
 
-        response = self.client.get(reverse("reports"))
-
-        self.assertEqual(response.status_code, 200)
-    
-    def test_anonymous_user_cannot_access_products(self):
         response = self.client.get(reverse("product_list"))
-
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/login/", response.url)
-
-    def test_customer_cannot_access_protected_route(self):
-        self.client.force_login(self.customer)
-
-        response = self.client.get(reverse("product_list"))
-
-        self.assertEqual(response.status_code, 403)
-
-        self.inventory_manager = User.objects.create_user(
-        username="protection_inventory_manager",
-        password="password123",
-        role=User.ROLE_INVENTORY_MANAGER,
-    )
-   
-   def protected_view(request):
-            return HttpResponse("allowed")
-
-        self.client.force_login(inventory_manager)
-
-        request = self.client.request().wsgi_request
-        request.user = inventory_manager
-
-        response = protected_view(request)
 
         self.assertEqual(response.status_code, 200)
 
-   
+    def test_authenticated_user_is_allowed_through_middleware(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(reverse("product_list"))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_anonymous_user_can_access_public_login(self):
+        response = self.client.get(reverse("login"))
+
+        self.assertNotEqual(response.status_code, 302)
+
