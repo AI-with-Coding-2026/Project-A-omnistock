@@ -461,3 +461,101 @@ class DashboardRevenueChartTests(TestCase):
         self.assertEqual(response.context['revenue_chart_values'], [])
         self.assertContains(response, 'No revenue data yet')
         self.assertNotContains(response, 'chart.js@4.4.0')
+
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
+
+from .utils import admin_required, staff_or_admin_required
+
+
+class RouteProtectionTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="protection_admin",
+            password="password123",
+            role=User.ROLE_ADMIN,
+        )
+        self.staff = User.objects.create_user(
+            username="protection_staff",
+            password="password123",
+            role=getattr(User, "ROLE_STAFF", "STAFF"),
+        )
+        self.sales_rep = User.objects.create_user(
+            username="protection_sales",
+            password="password123",
+            role=User.ROLE_SALES_REP,
+        )
+        self.customer = User.objects.create_user(
+            username="protection_customer",
+            password="password123",
+            role=User.ROLE_CUSTOMER,
+        )
+
+    def test_admin_required_allows_admin(self):
+        @admin_required
+        def protected_view(request):
+            return HttpResponse("allowed")
+
+        self.client.force_login(self.admin)
+
+        request = self.client.request().wsgi_request
+        request.user = self.admin
+
+        response = protected_view(request)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_admin_required_rejects_non_admin(self):
+        @admin_required
+        def protected_view(request):
+            return HttpResponse("allowed")
+
+        self.client.force_login(self.sales_rep)
+
+        request = self.client.request().wsgi_request
+        request.user = self.sales_rep
+
+        with self.assertRaises(PermissionDenied):
+            protected_view(request)
+
+    def test_staff_or_admin_required_allows_staff(self):
+        @staff_or_admin_required
+        def protected_view(request):
+            return HttpResponse("allowed")
+
+        self.client.force_login(self.staff)
+
+        request = self.client.request().wsgi_request
+        request.user = self.staff
+
+        response = protected_view(request)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_staff_or_admin_required_allows_sales_rep(self):
+        @staff_or_admin_required
+        def protected_view(request):
+            return HttpResponse("allowed")
+
+        self.client.force_login(self.sales_rep)
+
+        request = self.client.request().wsgi_request
+        request.user = self.sales_rep
+
+        response = protected_view(request)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_staff_or_admin_required_rejects_customer(self):
+        @staff_or_admin_required
+        def protected_view(request):
+            return HttpResponse("allowed")
+
+        self.client.force_login(self.customer)
+
+        request = self.client.request().wsgi_request
+        request.user = self.customer
+
+        response = protected_view(request)
+
+        self.assertEqual(response.status_code, 302)
