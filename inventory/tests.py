@@ -1,9 +1,11 @@
 from decimal import Decimal
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
+from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from django.urls import reverse
 from orders.models import Order, OrderItem
-from .models import Product, Supplier
+from .models import InvalidPurchaseOrderTransitionError, Product, PurchaseOrder, PurchaseOrderItem, Supplier
 
 User = get_user_model()
 
@@ -529,13 +531,52 @@ class ProtectedDeletionTests(TestCase):
             unit_price=Decimal('50.00'),
         )
 
-    def test_delete_protected_product_redirects_with_error(self):
+    def test_delete_protected_product_redirects_with_red_error_message(self):
         """Deleting a product referenced by an OrderItem should not crash (500)."""
         response = self.client.post(
-            reverse('product_delete', args=[self.product.pk])
+            reverse('product_delete', args=[self.product.pk]),
+            follow=True,
         )
         self.assertRedirects(response, reverse('product_list'))
         self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].tags, 'error')
+        self.assertIn(
+            'This product cannot be deleted because it is referenced by existing order history.',
+            str(messages[0]),
+        )
+
+        # Confirms the rendered banner uses the red error styling.
+        self.assertContains(response, 'bg-red-50')
+        self.assertContains(response, 'text-red-800')
+
+
+    def test_delete_unreferenced_product_redirects_with_green_success_message(self):
+        deletable_product = Product.objects.create(
+            supplier=self.supplier,
+            name='Deletable Product',
+            unit_price=Decimal('25.00'),
+            stock_quantity=5,
+        )
+
+        response = self.client.post(
+            reverse('product_delete', args=[deletable_product.pk]),
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('product_list'))
+        self.assertFalse(Product.objects.filter(pk=deletable_product.pk).exists())
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].tags, 'success')
+        self.assertIn('Product deleted.', str(messages[0]))
+
+        # Confirms the rendered success banner remains green.
+        self.assertContains(response, 'bg-green-50')
+        self.assertContains(response, 'text-green-800')
 
     def test_delete_protected_supplier_redirects_with_error(self):
         """Deleting a supplier whose products are referenced by OrderItems should not crash (500)."""
@@ -544,9 +585,6 @@ class ProtectedDeletionTests(TestCase):
         )
         self.assertRedirects(response, reverse('supplier_index'))
         self.assertTrue(Supplier.objects.filter(pk=self.supplier.pk).exists())
-<<<<<<< Updated upstream
-        self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
-=======
         self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
 
 
@@ -1120,4 +1158,4 @@ class PurchaseOrderListViewTests(TestCase):
         self.client.force_login(self.inventory_manager)
         response = self.client.get(reverse('purchase_order_list'))
         self.assertEqual(response.status_code, 200)
->>>>>>> Stashed changes
+

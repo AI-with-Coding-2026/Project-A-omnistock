@@ -1,0 +1,160 @@
+{% extends "core/base.html" %}
+{% block title %}{{ title }} - OmniStock{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">{{ title }}</h2>
+        <p class="mt-1 text-sm text-gray-500">Enter the purchase order details below.</p>
+    </div>
+
+    {% if messages %}
+    <div class="mb-6 space-y-3">
+        {% for message in messages %}
+        <div class="rounded-lg border px-4 py-3 text-sm
+                    {% if message.tags == 'success' %}
+                          bg-green-50 border-green-200 text-green-800
+                    {% else %}
+                          bg-red-50 border-red-200 text-red-800
+                    {% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <div>
+                <label for="supplier" class="block text-sm font-medium text-gray-700 mb-2">Supplier</label>
+                <select id="supplier" name="supplier" required
+                        class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition">
+                    <option value="">Select supplier</option>
+                    {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {{ products|json_script:"products-data" }}
+
+            <div x-data="{
+                    items: [{ product: '', isNew: false, newProduct: { name: '', unit_price: '', stock_quantity: '', reorder_level: '' }, qty: 1, unitCost: 0 }],
+                    priceMap: {},
+                    init() {
+                        const raw = JSON.parse(document.getElementById('products-data').textContent || '[]');
+                        raw.forEach(p => { this.priceMap[p.id] = parseFloat(p.unit_price); });
+                    },
+                    onProductChange(item) {
+                        if (item.product === '__new__') {
+                            item.isNew = true;
+                        } else {
+                            item.isNew = false;
+                            if (item.product && this.priceMap[item.product] !== undefined) {
+                                item.unitCost = this.priceMap[item.product];
+                            }
+                        }
+                    },
+                    lineTotal(item) {
+                        const cost = parseFloat(item.unitCost) || 0;
+                        const qty = parseInt(item.qty) || 0;
+                        return (cost * qty).toFixed(2);
+                    },
+                    get grandTotal() {
+                        return this.items.reduce((sum, item) => {
+                            const cost = parseFloat(item.unitCost) || 0;
+                            const qty = parseInt(item.qty) || 0;
+                            return sum + (cost * qty);
+                        }, 0).toFixed(2);
+                    }
+                 }" class="space-y-3 pt-4 border-t">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Line Items</label>
+
+                <template x-for="(item, index) in items" :key="index">
+                    <div class="border border-gray-200 rounded-lg p-4 space-y-3">
+                        <div class="flex gap-2 items-start">
+                            <div class="flex-1">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Product</label>
+                                <select :name="'items[][product]'" x-model="item.product"
+                                        @change="onProductChange(item)"
+                                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                    <option value="">Select product</option>
+                                    {% for product in products %}
+                                        <option value="{{ product.id }}">{{ product.name }} ({{ product.sku }}) - ${{ product.unit_price }}</option>
+                                    {% endfor %}
+                                    <option value="__new__">Create new product...</option>
+                                </select>
+                            </div>
+                            <div class="w-24">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Qty</label>
+                                <input type="number" min="1" :name="'items[][quantity]'" x-model.number="item.qty"
+                                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            </div>
+                            <div class="w-28">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Unit Cost ($)</label>
+                                <input type="number" min="0" step="0.01" :name="'items[][unit_cost]'" x-model.number="item.unitCost"
+                                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            </div>
+                            <div class="w-28">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Line Total</label>
+                                <input type="text" :value="'$' + lineTotal(item)" readonly
+                                       class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="button" @click="items.splice(index, 1)"
+                                        class="px-3 py-2 text-sm text-red-600 hover:text-red-800">Remove</button>
+                            </div>
+                        </div>
+
+                        <div x-show="item.isNew" x-transition class="border-t border-gray-100 pt-3 mt-3">
+                            <p class="text-xs font-medium text-gray-500 mb-2">New Product Details</p>
+                            <input type="hidden" :name="'items[][is_new]'" value="on" :disabled="!item.isNew">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Product Name</label>
+                                    <input type="text" :name="'items[][new_product_name]'" x-model="item.newProduct.name" :disabled="!item.isNew"
+                                           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Unit Price ($)</label>
+                                    <input type="number" min="0" step="0.01" :name="'items[][new_product_price]'" x-model.number="item.newProduct.unit_price" :disabled="!item.isNew"
+                                           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Stock Quantity</label>
+                                    <input type="number" min="0" :name="'items[][new_product_stock]'" x-model.number="item.newProduct.stock_quantity" :disabled="!item.isNew"
+                                           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Reorder Level</label>
+                                    <input type="number" min="0" :name="'items[][new_product_reorder]'" x-model.number="item.newProduct.reorder_level" :disabled="!item.isNew"
+                                           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <div class="flex justify-end items-center gap-2 pt-2">
+                    <span class="text-sm font-semibold text-gray-900">Grand Total: $<span x-text="grandTotal"></span></span>
+                </div>
+
+                <button type="button" @click="items.push({ product: '', isNew: false, newProduct: { name: '', unit_price: '', stock_quantity: '', reorder_level: '' }, qty: 1, unitCost: 0 })"
+                        class="px-4 py-2 text-sm font-medium text-slate-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    + Add item
+                </button>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-4 border-t">
+                <a href="{% url 'purchase_order_list' %}" class="px-5 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</a>
+                <button type="submit" class="px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 active:bg-slate-950 transition-colors">Create purchase order</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% endblock %}

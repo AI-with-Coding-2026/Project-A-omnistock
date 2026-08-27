@@ -1,3 +1,6 @@
+import csv
+import io
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -6,8 +9,9 @@ from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.db.models import F
 from django.template.loader import render_to_string
-from django.test import RequestFactory, Client, TestCase
-from django.urls import reverse, resolve
+from django.test import Client, RequestFactory, TestCase
+from django.urls import resolve, reverse
+from django.utils import timezone
 
 from inventory.models import Product, Supplier
 from orders.models import InvalidOrderTransitionError, Invoice, Order, OrderItem
@@ -473,7 +477,6 @@ class OrderCancellationTests(TestCase):
         order = self.create_completed_order()
         self.client.force_login(self.admin)
 
-        self.client.post(reverse('order_cancel', args=[order.pk]))
         self.client.post(reverse('order_cancel', args=[order.pk]))
 
         order.refresh_from_db()
@@ -1379,7 +1382,6 @@ class OrderCancellationIdempotencyTests(TestCase):
 
         self.client.force_login(self.user)
         self.client.post(reverse('order_cancel', args=[order.pk]))
-        self.client.post(reverse('order_cancel', args=[order.pk]))
 
         order.refresh_from_db()
         self.product_a.refresh_from_db()
@@ -1387,11 +1389,7 @@ class OrderCancellationIdempotencyTests(TestCase):
 
         self.assertEqual(order.status, Order.STATUS_CANCELLED)
         self.assertEqual(self.product_a.stock_quantity, initial_stock_a + 4)
-<<<<<<< Updated upstream
         self.assertEqual(self.product_b.stock_quantity, initial_stock_b + 1)
-=======
-        self.assertEqual(self.product_b.stock_quantity, initial_stock_b + 1)
-
 
 class ReportsAndExportTests(TestCase):
     def setUp(self):
@@ -1678,4 +1676,4 @@ class OrderListActionButtonsTests(TestCase):
         html = response.content.decode()
         self.assertNotIn(f"action=\"/orders/{self.cancelled_order.pk}/complete/\"", html)
         self.assertNotIn(f"action=\"/orders/{self.cancelled_order.pk}/cancel/\"", html)
->>>>>>> Stashed changes
+

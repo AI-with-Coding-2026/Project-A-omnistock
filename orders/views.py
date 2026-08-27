@@ -1,3 +1,4 @@
+import csv
 import logging
 from collections import defaultdict
 
@@ -19,6 +20,38 @@ from .pdf import render_html_to_pdf
 logger = logging.getLogger(__name__)
 
 ORDER_CANCEL_REDIRECT = 'order_list'
+
+
+
+@admin_required
+def export_orders_csv(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="orders.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Order #',
+        'Customer',
+        'Sales Rep',
+        'Total',
+        'Status',
+        'Created At',
+    ])
+
+    orders = Order.objects.filter(
+        status=Order.STATUS_COMPLETED,
+    ).select_related('user')
+    for order in orders:
+        writer.writerow([
+            order.order_number,
+            order.customer_name,
+            order.user.username,
+            order.total_amount,
+            order.status,
+            order.created_at.isoformat(),
+        ])
+
+    return response
 
 
 @staff_or_admin_required
