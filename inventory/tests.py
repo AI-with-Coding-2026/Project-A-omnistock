@@ -544,4 +544,580 @@ class ProtectedDeletionTests(TestCase):
         )
         self.assertRedirects(response, reverse('supplier_index'))
         self.assertTrue(Supplier.objects.filter(pk=self.supplier.pk).exists())
+<<<<<<< Updated upstream
         self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
+=======
+        self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
+
+
+class PurchaseOrderModelTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='po_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.supplier = Supplier.objects.create(
+            name='PO Supplier',
+            email='po_supplier@test.com',
+            phone='123456789',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='PO Product',
+            unit_price=Decimal('50.00'),
+            stock_quantity=10,
+        )
+
+    def test_po_str_includes_number_and_supplier(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+            status=PurchaseOrder.STATUS_PENDING,
+        )
+        self.assertIn(po.po_number, str(po))
+        self.assertIn(self.supplier.name, str(po))
+
+    def test_po_number_auto_generated(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+        )
+        self.assertTrue(po.po_number.startswith('PO-'))
+        self.assertEqual(po.status, PurchaseOrder.STATUS_PENDING)
+
+    def test_line_total_property(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+        )
+        item = PurchaseOrderItem.objects.create(
+            purchase_order=po,
+            product=self.product,
+            quantity=3,
+            unit_cost=Decimal('25.00'),
+        )
+        self.assertEqual(item.line_total(), Decimal('75.00'))
+
+    def test_rejects_zero_quantity(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+        )
+        item = PurchaseOrderItem(
+            purchase_order=po,
+            product=self.product,
+            quantity=0,
+            unit_cost=Decimal('10.00'),
+        )
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+
+    def test_rejects_negative_quantity(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+        )
+        item = PurchaseOrderItem(
+            purchase_order=po,
+            product=self.product,
+            quantity=-1,
+            unit_cost=Decimal('10.00'),
+        )
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+
+    def test_rejects_negative_unit_cost(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+        )
+        item = PurchaseOrderItem(
+            purchase_order=po,
+            product=self.product,
+            quantity=1,
+            unit_cost=Decimal('-1.00'),
+        )
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+
+    def test_allows_zero_unit_cost(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+        )
+        item = PurchaseOrderItem(
+            purchase_order=po,
+            product=self.product,
+            quantity=1,
+            unit_cost=Decimal('0.00'),
+        )
+        item.full_clean()
+        item.save()
+        self.assertEqual(item.unit_cost, Decimal('0.00'))
+
+
+class PurchaseOrderAccessTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='po_access_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.inventory_manager = User.objects.create_user(
+            username='po_access_inv_mgr',
+            password='password123',
+            role=User.ROLE_INVENTORY_MANAGER,
+        )
+        self.sales_rep = User.objects.create_user(
+            username='po_access_sales',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        self.staff = User.objects.create_user(
+            username='po_access_staff',
+            password='password123',
+            role=User.ROLE_STAFF,
+        )
+        self.customer = User.objects.create_user(
+            username='po_access_customer',
+            password='password123',
+            role=User.ROLE_CUSTOMER,
+        )
+        self.supplier = Supplier.objects.create(
+            name='Access Supplier',
+            email='access_supplier@test.com',
+            phone='123456789',
+        )
+        self.po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+        )
+        self.client = Client()
+
+    def test_admin_can_access_create(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('purchase_order_create'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_admin_can_access_list(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_inventory_manager_can_access_create(self):
+        self.client.force_login(self.inventory_manager)
+        response = self.client.get(reverse('purchase_order_create'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_inventory_manager_can_access_list(self):
+        self.client.force_login(self.inventory_manager)
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_sales_rep_cannot_access_create(self):
+        self.client.force_login(self.sales_rep)
+        response = self.client.get(reverse('purchase_order_create'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_sales_rep_cannot_access_list(self):
+        self.client.force_login(self.sales_rep)
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_staff_cannot_access_create(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('purchase_order_create'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_staff_cannot_access_list(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_customer_cannot_access_create(self):
+        self.client.force_login(self.customer)
+        response = self.client.get(reverse('purchase_order_create'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_customer_cannot_access_list(self):
+        self.client.force_login(self.customer)
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_redirected_to_login_for_create(self):
+        response = self.client.get(reverse('purchase_order_create'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(str(reverse('login')), response.url)
+
+    def test_anonymous_redirected_to_login_for_list(self):
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(str(reverse('login')), response.url)
+
+
+class PurchaseOrderCreateFlowTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='po_flow_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.inventory_manager = User.objects.create_user(
+            username='po_flow_inv_mgr',
+            password='password123',
+            role=User.ROLE_INVENTORY_MANAGER,
+        )
+        self.supplier = Supplier.objects.create(
+            name='Flow Supplier',
+            email='flow_supplier@test.com',
+            phone='123456789',
+        )
+        self.product_a = Product.objects.create(
+            supplier=self.supplier,
+            name='Product A',
+            unit_price=Decimal('10.00'),
+            stock_quantity=100,
+        )
+        self.product_b = Product.objects.create(
+            supplier=self.supplier,
+            name='Product B',
+            unit_price=Decimal('20.00'),
+            stock_quantity=100,
+        )
+        self.client = Client()
+
+    def _post_po(self, user, data):
+        self.client.force_login(user)
+        return self.client.post(reverse('purchase_order_create'), data)
+
+    def test_valid_post_creates_po_pending_with_created_by(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [str(self.product_a.id)],
+            'items[][quantity]': ['5'],
+            'items[][unit_cost]': ['10.00'],
+            'items[][is_new]': [''],
+        })
+        self.assertRedirects(response, reverse('purchase_order_list'))
+        po = PurchaseOrder.objects.first()
+        self.assertEqual(po.status, PurchaseOrder.STATUS_PENDING)
+        self.assertEqual(po.created_by, self.admin)
+        self.assertEqual(po.supplier, self.supplier)
+        self.assertEqual(po.items.count(), 1)
+        item = po.items.first()
+        self.assertEqual(item.product, self.product_a)
+        self.assertEqual(item.quantity, 5)
+        self.assertEqual(item.unit_cost, Decimal('10.00'))
+
+    def test_multiple_line_items_all_saved(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [str(self.product_a.id), str(self.product_b.id)],
+            'items[][quantity]': ['2', '3'],
+            'items[][unit_cost]': ['10.00', '20.00'],
+            'items[][is_new]': ['', ''],
+        })
+        self.assertRedirects(response, reverse('purchase_order_list'))
+        po = PurchaseOrder.objects.first()
+        self.assertEqual(po.items.count(), 2)
+        items = list(po.items.all())
+        self.assertEqual(items[0].product, self.product_a)
+        self.assertEqual(items[0].quantity, 2)
+        self.assertEqual(items[1].product, self.product_b)
+        self.assertEqual(items[1].quantity, 3)
+
+    def test_zero_items_rejected(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [''],
+            'items[][quantity]': [''],
+            'items[][unit_cost]': [''],
+            'items[][is_new]': [''],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+
+    def test_new_product_line_item_creates_product(self):
+        initial_product_count = Product.objects.count()
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': ['', str(self.product_a.id)],
+            'items[][quantity]': ['1', '2'],
+            'items[][unit_cost]': ['15.00', '10.00'],
+            'items[][is_new]': ['on', ''],
+            'items[][new_product_name]': ['New Widget', ''],
+            'items[][new_product_price]': ['15.00', ''],
+            'items[][new_product_stock]': ['50', ''],
+            'items[][new_product_reorder]': ['10', ''],
+        })
+        self.assertRedirects(response, reverse('purchase_order_list'))
+        self.assertEqual(Product.objects.count(), initial_product_count + 1)
+        new_product = Product.objects.filter(name='New Widget').first()
+        self.assertIsNotNone(new_product)
+        self.assertEqual(new_product.supplier, self.supplier)
+        self.assertTrue(new_product.sku.startswith('SUP-PROD-'))
+        po = PurchaseOrder.objects.first()
+        self.assertEqual(po.items.count(), 2)
+        self.assertTrue(po.items.filter(product=new_product, quantity=1, unit_cost=Decimal('15.00')).exists())
+
+    def test_no_stock_quantity_side_effects_on_creation(self):
+        original_stock = self.product_a.stock_quantity
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [str(self.product_a.id)],
+            'items[][quantity]': ['10'],
+            'items[][unit_cost]': ['10.00'],
+            'items[][is_new]': [''],
+        })
+        self.assertRedirects(response, reverse('purchase_order_list'))
+        self.product_a.refresh_from_db()
+        self.assertEqual(self.product_a.stock_quantity, original_stock)
+
+    def test_inventory_manager_can_create_po(self):
+        response = self._post_po(self.inventory_manager, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [str(self.product_a.id)],
+            'items[][quantity]': ['3'],
+            'items[][unit_cost]': ['10.00'],
+            'items[][is_new]': [''],
+        })
+        self.assertRedirects(response, reverse('purchase_order_list'))
+        po = PurchaseOrder.objects.first()
+        self.assertEqual(po.created_by, self.inventory_manager)
+        self.assertEqual(po.status, PurchaseOrder.STATUS_PENDING)
+
+    def test_negative_quantity_post_rejected(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [str(self.product_a.id)],
+            'items[][quantity]': ['-5'],
+            'items[][unit_cost]': ['10.00'],
+            'items[][is_new]': [''],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+
+    def test_negative_unit_cost_post_rejected(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [str(self.product_a.id)],
+            'items[][quantity]': ['5'],
+            'items[][unit_cost]': ['-10.00'],
+            'items[][is_new]': [''],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+
+    def test_non_numeric_quantity_post_rejected(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [str(self.product_a.id)],
+            'items[][quantity]': ['abc'],
+            'items[][unit_cost]': ['10.00'],
+            'items[][is_new]': [''],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+
+    def test_invalid_second_item_rolls_back_new_product_creation(self):
+        initial_product_count = Product.objects.count()
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': ['', str(self.product_a.id)],
+            'items[][quantity]': ['1', '-5'],
+            'items[][unit_cost]': ['15.00', '10.00'],
+            'items[][is_new]': ['on', ''],
+            'items[][new_product_name]': ['Rollback Widget', ''],
+            'items[][new_product_price]': ['15.00', ''],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+        self.assertEqual(Product.objects.count(), initial_product_count)
+        self.assertFalse(Product.objects.filter(name='Rollback Widget').exists())
+
+    def test_nan_unit_cost_rejected(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [str(self.product_a.id)],
+            'items[][quantity]': ['1'],
+            'items[][unit_cost]': ['NaN'],
+            'items[][is_new]': [''],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+
+    def test_negative_new_product_stock_rejected(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [''],
+            'items[][quantity]': ['1'],
+            'items[][unit_cost]': ['15.00'],
+            'items[][is_new]': ['on'],
+            'items[][new_product_name]': ['Negative Stock Widget'],
+            'items[][new_product_price]': ['15.00'],
+            'items[][new_product_stock]': ['-10'],
+            'items[][new_product_reorder]': ['0'],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+        self.assertFalse(Product.objects.filter(name='Negative Stock Widget').exists())
+
+    def test_negative_new_product_reorder_rejected(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [''],
+            'items[][quantity]': ['1'],
+            'items[][unit_cost]': ['15.00'],
+            'items[][is_new]': ['on'],
+            'items[][new_product_name]': ['Negative Reorder Widget'],
+            'items[][new_product_price]': ['15.00'],
+            'items[][new_product_stock]': ['10'],
+            'items[][new_product_reorder]': ['-5'],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+        self.assertFalse(Product.objects.filter(name='Negative Reorder Widget').exists())
+
+    def test_non_existent_product_id_rejected(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': ['99999'],
+            'items[][quantity]': ['1'],
+            'items[][unit_cost]': ['10.00'],
+            'items[][is_new]': [''],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+
+    def test_infinity_unit_cost_rejected(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [str(self.product_a.id)],
+            'items[][quantity]': ['1'],
+            'items[][unit_cost]': ['Infinity'],
+            'items[][is_new]': [''],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+
+    def test_infinity_new_product_price_rejected(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [''],
+            'items[][quantity]': ['1'],
+            'items[][unit_cost]': ['15.00'],
+            'items[][is_new]': ['on'],
+            'items[][new_product_name]': ['Infinity Price Widget'],
+            'items[][new_product_price]': ['Infinity'],
+            'items[][new_product_stock]': ['10'],
+            'items[][new_product_reorder]': ['5'],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+        self.assertFalse(Product.objects.filter(name='Infinity Price Widget').exists())
+
+    def test_new_product_name_too_long_rejected(self):
+        long_name = 'X' * 300
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [''],
+            'items[][quantity]': ['1'],
+            'items[][unit_cost]': ['15.00'],
+            'items[][is_new]': ['on'],
+            'items[][new_product_name]': [long_name],
+            'items[][new_product_price]': ['15.00'],
+            'items[][new_product_stock]': ['10'],
+            'items[][new_product_reorder]': ['5'],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PurchaseOrder.objects.count(), 0)
+        self.assertFalse(Product.objects.filter(name=long_name).exists())
+
+    def test_new_product_name_null_byte_is_stripped(self):
+        response = self._post_po(self.admin, {
+            'supplier': str(self.supplier.id),
+            'items[][product]': [''],
+            'items[][quantity]': ['2'],
+            'items[][unit_cost]': ['15.00'],
+            'items[][is_new]': ['on'],
+            'items[][new_product_name]': ['Widget\x00X'],
+            'items[][new_product_price]': ['15.00'],
+            'items[][new_product_stock]': ['10'],
+            'items[][new_product_reorder]': ['5'],
+        })
+        self.assertRedirects(response, reverse('purchase_order_list'))
+        self.assertTrue(Product.objects.filter(name='WidgetX').exists())
+
+
+class PurchaseOrderListViewTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='po_list_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.inventory_manager = User.objects.create_user(
+            username='po_list_inv_mgr',
+            password='password123',
+            role=User.ROLE_INVENTORY_MANAGER,
+        )
+        self.sales_rep = User.objects.create_user(
+            username='po_list_sales',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        self.supplier = Supplier.objects.create(
+            name='List Supplier',
+            email='list_supplier@test.com',
+            phone='123456789',
+        )
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            name='List Product',
+            unit_price=Decimal('10.00'),
+            stock_quantity=100,
+        )
+        self.po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+            status=PurchaseOrder.STATUS_PENDING,
+        )
+        PurchaseOrderItem.objects.create(
+            purchase_order=self.po,
+            product=self.product,
+            quantity=5,
+            unit_cost=Decimal('10.00'),
+        )
+        self.client = Client()
+
+    def test_new_po_shows_in_list(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.po.po_number)
+        self.assertContains(response, self.supplier.name)
+        self.assertContains(response, 'Pending')
+
+    def test_shows_created_by_username(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.admin.username)
+
+    def test_shows_created_at(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.po.created_at.strftime('%b %d, %Y'))
+
+    def test_sales_rep_cannot_access_list(self):
+        self.client.force_login(self.sales_rep)
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_inventory_manager_can_access_list(self):
+        self.client.force_login(self.inventory_manager)
+        response = self.client.get(reverse('purchase_order_list'))
+        self.assertEqual(response.status_code, 200)
+>>>>>>> Stashed changes
