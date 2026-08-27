@@ -44,3 +44,17 @@ def staff_or_admin_required(view_func):
             'ADMIN', 'STAFF', 'INVENTORY_MANAGER', 'SALES_REP'
         ]
     )(view_func)
+
+def supplier_required(view_func):
+    """
+    Decorator that restricts access to Supplier role only.
+    Used for the Supplier Portal PO response view.
+    Raises PermissionDenied (403) if user is not a Supplier.
+    """
+    @login_required
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if getattr(request.user, 'role', None) != 'SUPPLIER':
+            raise PermissionDenied
+        return view_func(request, *args, **kwargs)
+    return _wrapped

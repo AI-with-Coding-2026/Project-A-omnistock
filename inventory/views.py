@@ -1,16 +1,19 @@
 import math
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import BooleanField, Case, Count, F, ProtectedError, Q, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from core.utils import (
     admin_or_inventory_manager_required,
     admin_required,
     staff_or_admin_required,
+    supplier_required,
 )
 
 from .forms import ProductForm, SupplierForm
@@ -419,3 +422,52 @@ def purchase_order_create(request):
         'products': products,
         'title': 'Create Purchase Order',
     })
+
+@supplier_required
+def supplier_portal_po_list(request):
+    supplier = getattr(request.user, 'supplier_profile', None)
+    if supplier is None:
+        return render(request, 'inventory/supplier_portal_no_supplier.html', {}, status=403)
+
+    purchase_orders = PurchaseOrder.objects.filter(
+        supplier=supplier, status=PurchaseOrder.STATUS_PENDING
+    ).select_related('supplier').prefetch_related('items__product')
+
+    return render(request, 'inventory/supplier_portal_po_list.html', {
+        'purchase_orders': purchase_orders,
+    })
+
+@supplier_required
+@require_POST
+def supplier_portal_po_accept(request, pk):
+    supplier = getattr(request.user, 'supplier_profile', None)
+    if supplier is None:
+        raise PermissionDenied
+
+    po = get_object_or_404(PurchaseOrder, pk=pk, supplier=supplier)
+
+    if not po.can_approve():
+        messages.warning(request, f"PO {po.po_number} cannot be accepted from its current status.")
+        return redirect('supplier_portal_po_list')
+
+    po.approve()
+    messages.success(request, f"PO {po.po_number} accepted.")
+    return redirect('supplier_portal_po_list')
+
+@supplier_required
+@require_POST
+def supplier_portal_po_reject(request, pk):
+    supplier = getattr(request.user, 'supplier_profile', None)
+    if supplier is None:
+        raise PermissionDenied
+
+    po = get_object_or_404(PurchaseOrder, pk=pk, supplier=supplier)
+
+    if not po.can_cancel():
+        messages.warning(request, f"PO {po.po_number} cannot be rejected from its current status.")
+        return redirect('supplier_portal_po_list')
+
+    po.cancel()
+    messages.success(request, f"PO {po.po_number} rejected.")
+    return redirect('supplier_portal_po_list')
+
