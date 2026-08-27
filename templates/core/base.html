@@ -197,6 +197,8 @@
 
                 {% endif %}
 
+
+
                 {% url 'order_list' as order_url %}
                 <a href="{{ order_url }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                           transition-colors border-l-2
@@ -214,6 +216,24 @@
                     </svg>
                     Orders
                 </a>
+
+                {% if user.role == 'ADMIN' or user.role == 'SALES_REP' %}
+                    {% url 'customer_list' as customer_url %}
+                    <a href="{{ customer_url }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                              transition-colors border-l-2
+                              {% if request.resolver_match.url_name == 'customer_list' %}
+                                  bg-slate-800 border-slate-100 text-white
+                              {% else %}
+                                  border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
+                              {% endif %}">
+                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+                            <circle cx="10" cy="7" r="3"/>
+                            <path d="M4 17c0-3 2.5-5 6-5s6 2 6 5"/>
+                        </svg>
+                        Customers
+                    </a>
+                {% endif %}
 
                 {% if user.role == 'ADMIN' %}
                     {% url 'reports' as reports_url %}

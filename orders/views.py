@@ -3,18 +3,18 @@ import logging
 from collections import defaultdict
 
 from django.contrib import messages
-from django.db import transaction
-from django.db.models import F, Q
+from django.db import IntegrityError, transaction
+from django.db.models import Count, F, ProtectedError, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
-from core.utils import admin_required, staff_or_admin_required
+from core.utils import admin_or_sales_rep_required, admin_required, staff_or_admin_required
 from inventory.models import Product
 
-from .forms import OrderForm
-from .models import InvalidOrderTransitionError, Order, OrderItem
+from .forms import CustomerForm, OrderForm
+from .models import Customer, InvalidOrderTransitionError, Order, OrderItem
 from .pdf import render_html_to_pdf
 
 logger = logging.getLogger(__name__)
@@ -22,6 +22,62 @@ logger = logging.getLogger(__name__)
 ORDER_CANCEL_REDIRECT = 'order_list'
 
 
+@admin_or_sales_rep_required
+def customer_list(request):
+    customers = Customer.objects.annotate(
+        order_count=Count('orders'),
+    )
+    return render(request, 'orders/customer_list.html', {'customers': customers})
+
+@admin_or_sales_rep_required
+def customer_create(request):
+    form = CustomerForm(request.POST or None)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Customer created.')
+        return redirect('customer_list')
+    return render(request, 'orders/customer_form.html', {
+        'form': form,
+        'title': 'Create Customer',
+    })
+
+
+@admin_or_sales_rep_required
+def customer_update(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    form = CustomerForm(request.POST or None, instance=customer)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Customer updated.')
+        return redirect('customer_list')
+    return render(request, 'orders/customer_form.html', {
+        'form': form,
+        'title': 'Update Customer',
+    })
+
+
+@admin_or_sales_rep_required
+def customer_detail(request, pk):
+    customer = get_object_or_404(
+        Customer.objects.prefetch_related('orders'),
+        pk=pk,
+    )
+    return render(request, 'orders/customer_detail.html', {'customer': customer})
+
+@admin_or_sales_rep_required
+def customer_delete(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    if request.method == 'POST':
+        try:
+            customer.delete()
+            messages.success(request, 'Customer deleted.')
+        except ProtectedError:
+            messages.error(
+                request,
+                'This customer cannot be deleted because they have existing orders.',
+            )
+        return redirect('customer_list')
+    return render(request, 'orders/customer_confirm_delete.html', {'object': customer})
 
 @admin_required
 def export_orders_csv(request):
@@ -111,6 +167,7 @@ def order_index(request):
         'customer': customer,
     })
 
+
 @staff_or_admin_required
 def order_detail(request, pk):
     order = get_object_or_404(
@@ -121,6 +178,7 @@ def order_detail(request, pk):
         'order': order,
         'is_admin': request.user.role == 'ADMIN',
     })
+
 
 @staff_or_admin_required
 @transaction.atomic
@@ -134,6 +192,7 @@ def order_create(request):
             'stock_quantity',
         )
     )
+    customers = list(Customer.objects.values('id', 'name', 'email'))
 
     form = OrderForm(request.POST or None)
 
@@ -175,6 +234,7 @@ def order_create(request):
                 'form': form,
                 'title': 'Create Order',
                 'products': products,
+                'customers': customers,
             })
 
         if not line_items:
@@ -186,6 +246,24 @@ def order_create(request):
                 'form': form,
                 'title': 'Create Order',
                 'products': products,
+                'customers': customers,
+            })
+
+        # Check customer selection is valid WITHOUT creating anything yet
+        new_customer_name = request.POST.get('new_customer_name', '').strip()
+        new_customer_email = request.POST.get('new_customer_email', '').strip()
+        existing_customer = form.cleaned_data.get('customer')
+
+        if not existing_customer and not (new_customer_name and new_customer_email):
+            form.add_error(
+                None,
+                'Select an existing customer or fill in the new customer details.',
+            )
+            return render(request, 'orders/order_form.html', {
+                'form': form,
+                'title': 'Create Order',
+                'products': products,
+                'customers': customers,
             })
 
         locked_products = {}
@@ -213,9 +291,46 @@ def order_create(request):
                 'form': form,
                 'title': 'Create Order',
                 'products': products,
+                'customers': customers,
             })
 
+        # All validation passed: now safe to create the Customer if needed
+        if existing_customer:
+            customer = existing_customer
+        else:
+            customer_form = CustomerForm({
+                'name': new_customer_name,
+                'email': new_customer_email,
+                'phone': request.POST.get('new_customer_phone', '').strip(),
+                'address': request.POST.get('new_customer_address', '').strip(),
+            })
+            if not customer_form.is_valid():
+                for field, errors in customer_form.errors.items():
+                    for error in errors:
+                        form.add_error(None, f'New customer {field}: {error}')
+                return render(request, 'orders/order_form.html', {
+                    'form': form,
+                    'title': 'Create Order',
+                    'products': products,
+                    'customers': customers,
+                })
+            try:
+                customer = customer_form.save()
+            except IntegrityError:
+                form.add_error(
+                    None,
+                    'A customer with that email already exists. Please select them from the existing customers list instead.',
+                )
+                return render(request, 'orders/order_form.html', {
+                    'form': form,
+                    'title': 'Create Order',
+                    'products': products,
+                    'customers': customers,
+                })
+
         order = form.save(commit=False)
+        order.customer = customer
+        order.customer_name = customer.name
         order.user = request.user
         order.save()
 
@@ -249,6 +364,7 @@ def order_create(request):
         'form': form,
         'title': 'Create Order',
         'products': products,
+        'customers': customers,
     })
 
 

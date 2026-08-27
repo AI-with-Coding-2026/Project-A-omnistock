@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+
+{% block title %}Delete Customer - OmniStock{% endblock %}
+{% block page_title %}Delete Customer{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+        <div class="flex items-start gap-4">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 3v8"/><circle cx="10" cy="14" r=".6" fill="currentColor"/><path d="M9.1 2.8 2.8 15a1.4 1.4 0 0 0 1.2 2h12a1.4 1.4 0 0 0 1.2-2L10.9 2.8a1 1 0 0 0-1.8 0Z"/></svg>
+            </span>
+            <div>
+                <h2 class="text-xl font-bold text-gray-900">Delete customer?</h2>
+                <p class="mt-2 text-sm leading-6 text-gray-600">You are about to permanently delete <strong class="font-semibold text-gray-900">{{ object }}</strong>. This action cannot be undone.</p>
+            </div>
+        </div>
+        <form method="post" class="mt-8 flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:justify-end">
+            {% csrf_token %}
+            <a href="{% url 'customer_list' %}" class="rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 transition hover:bg-gray-50">Cancel</a>
+            <button type="submit" class="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700">Delete Customer</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
