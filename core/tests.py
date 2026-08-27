@@ -157,7 +157,7 @@ class RevenueCalculationTests(TestCase):
         )
 
         response = self.client.get(reverse("dashboard"))
-
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["total_revenue"], Decimal("100.00"))
 
     def test_dashboard_revenue_excludes_pending_orders(self):
@@ -167,7 +167,7 @@ class RevenueCalculationTests(TestCase):
         )
 
         response = self.client.get(reverse("dashboard"))
-
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["total_revenue"], Decimal("0"))
 
     def test_dashboard_revenue_updates_when_order_is_completed_and_cancelled(self):
@@ -178,6 +178,7 @@ class RevenueCalculationTests(TestCase):
 
         # Pending order should not count as revenue.
         response = self.client.get(self.dashboard_url)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.context["total_revenue"],
             Decimal("0"),
@@ -188,6 +189,7 @@ class RevenueCalculationTests(TestCase):
         order.refresh_from_db()
 
         response = self.client.get(self.dashboard_url)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.context["total_revenue"],
             Decimal("100.00"),
@@ -198,6 +200,7 @@ class RevenueCalculationTests(TestCase):
         order.refresh_from_db()
 
         response = self.client.get(self.dashboard_url)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.context["total_revenue"],
             Decimal("0"),
@@ -225,7 +228,7 @@ class RevenueCalculationTests(TestCase):
         )
 
         response = self.client.get(reverse("dashboard"))
-
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.context["total_revenue"],
             Decimal("150.00"),
@@ -238,7 +241,7 @@ class RevenueCalculationTests(TestCase):
         )
 
         response = self.client.get(reverse("reports"))
-
+        self.assertEqual(response.status_code, 200)
         monthly_revenue = list(response.context["monthly_revenue"])
 
         self.assertEqual(len(monthly_revenue), 1)
@@ -254,7 +257,7 @@ class RevenueCalculationTests(TestCase):
         )
 
         response = self.client.get(reverse("reports"))
-
+        self.assertEqual(response.status_code, 200)
         monthly_revenue = list(response.context["monthly_revenue"])
 
         self.assertEqual(monthly_revenue, [])
@@ -267,6 +270,7 @@ class RevenueCalculationTests(TestCase):
 
         # Pending order should not appear in revenue.
         response = self.client.get(self.reports_url)
+        self.assertEqual(response.status_code, 200)
         monthly_revenue = list(response.context["monthly_revenue"])
 
         self.assertEqual(monthly_revenue, [])
@@ -276,6 +280,7 @@ class RevenueCalculationTests(TestCase):
         order.refresh_from_db()
 
         response = self.client.get(self.reports_url)
+        self.assertEqual(response.status_code, 200)
         monthly_revenue = list(response.context["monthly_revenue"])
 
         self.assertEqual(len(monthly_revenue), 1)
@@ -289,6 +294,7 @@ class RevenueCalculationTests(TestCase):
         order.refresh_from_db()
 
         response = self.client.get(self.reports_url)
+        self.assertEqual(response.status_code, 200)
         monthly_revenue = list(response.context["monthly_revenue"])
 
         self.assertEqual(
@@ -318,7 +324,7 @@ class RevenueCalculationTests(TestCase):
         )
 
         response = self.client.get(reverse("reports"))
-
+        self.assertEqual(response.status_code, 200)
         monthly_revenue = list(response.context["monthly_revenue"])
 
         self.assertEqual(len(monthly_revenue), 1)
@@ -351,6 +357,7 @@ class RevenueCalculationTests(TestCase):
         )
 
         response = self.client.get(self.reports_url)
+        self.assertEqual(response.status_code, 200)
         monthly_revenue = list(response.context["monthly_revenue"])
 
         self.assertEqual(len(monthly_revenue), 2)
