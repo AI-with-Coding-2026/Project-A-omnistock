@@ -52,8 +52,6 @@ class RoleBasedLoginView(LoginView):
             return reverse('product_list')
         elif user.role == User.ROLE_SALES_REP:
             return reverse('order_create')
-        elif user.role == getattr(User, 'ROLE_SUPPLIER', 'SUPPLIER'):
-            return reverse('dashboard')
         else:
             return reverse('dashboard')
 
