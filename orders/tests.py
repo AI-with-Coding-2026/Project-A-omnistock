@@ -1391,7 +1391,6 @@ class OrderCancellationIdempotencyTests(TestCase):
         self.assertEqual(self.product_a.stock_quantity, initial_stock_a + 4)
         self.assertEqual(self.product_b.stock_quantity, initial_stock_b + 1)
 
-
 class ReportsAndExportTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
@@ -1518,3 +1517,166 @@ class ReportsAndExportTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+
+class OrderStatusTransitionViewTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin_t', password='pass123!', role='ADMIN')
+        self.staff = User.objects.create_user(username='staff_t', password='pass123!', role='STAFF')
+        self.sales_rep = User.objects.create_user(username='sales_t', password='pass123!', role='SALES_REP')
+
+        from inventory.models import Product, Supplier
+        supplier = Supplier.objects.create(name='Test Supplier', email='s@test.com', phone='111222333')
+        self.product = Product.objects.create(
+            sku='TST-1', name='Test Product', supplier=supplier,
+            unit_price=10, stock_quantity=50, reorder_level=5,
+        )
+
+        self.pending_order = Order.objects.create(
+            user=self.admin, customer_name='Pending Co', total_amount=100,
+            status=Order.STATUS_PENDING,
+        )
+        OrderItem.objects.create(
+            order=self.pending_order, product=self.product, quantity=5, unit_price=10,
+        )
+
+        self.completed_order = Order.objects.create(
+            user=self.admin, customer_name='Completed Co', total_amount=100,
+            status=Order.STATUS_COMPLETED,
+        )
+        OrderItem.objects.create(
+            order=self.completed_order, product=self.product, quantity=5, unit_price=10,
+        )
+
+        self.cancelled_order = Order.objects.create(
+            user=self.admin, customer_name='Cancelled Co', total_amount=100,
+            status=Order.STATUS_CANCELLED,
+        )
+
+    # --- order_complete ---
+
+    def test_staff_can_complete_pending_order(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse('order_complete', args=[self.pending_order.pk]))
+        self.pending_order.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.pending_order.status, Order.STATUS_COMPLETED)
+
+    def test_admin_can_complete_pending_order(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('order_complete', args=[self.pending_order.pk]))
+        self.pending_order.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.pending_order.status, Order.STATUS_COMPLETED)
+
+    def test_complete_already_completed_order_shows_warning_no_crash(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse('order_complete', args=[self.completed_order.pk]), follow=True)
+        self.completed_order.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.completed_order.status, Order.STATUS_COMPLETED)
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('cannot be marked as completed' in str(m) for m in messages))
+
+    def test_complete_cancelled_order_blocked(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('order_complete', args=[self.cancelled_order.pk]), follow=True)
+        self.cancelled_order.refresh_from_db()
+        self.assertEqual(self.cancelled_order.status, Order.STATUS_CANCELLED)
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('cannot be marked as completed' in str(m) for m in messages))
+
+    def test_unauthenticated_user_cannot_complete_order(self):
+        response = self.client.post(reverse('order_complete', args=[self.pending_order.pk]))
+        self.pending_order.refresh_from_db()
+        self.assertNotEqual(response.status_code, 200)
+        self.assertEqual(self.pending_order.status, Order.STATUS_PENDING)
+
+    # --- order_cancel ---
+
+    def test_admin_can_cancel_pending_order_and_stock_restored(self):
+        self.product.stock_quantity = 45
+        self.product.save()
+
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('order_cancel', args=[self.pending_order.pk]))
+        self.pending_order.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.pending_order.status, Order.STATUS_CANCELLED)
+        self.assertEqual(self.product.stock_quantity, 50)
+
+    def test_admin_can_cancel_completed_order(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('order_cancel', args=[self.completed_order.pk]))
+        self.completed_order.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.completed_order.status, Order.STATUS_CANCELLED)
+
+    def test_staff_cannot_cancel_order(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse('order_cancel', args=[self.pending_order.pk]))
+        self.pending_order.refresh_from_db()
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.pending_order.status, Order.STATUS_PENDING)
+
+    def test_sales_rep_cannot_cancel_order(self):
+        self.client.force_login(self.sales_rep)
+        response = self.client.post(reverse('order_cancel', args=[self.pending_order.pk]))
+        self.assertEqual(response.status_code, 403)
+
+    def test_cancel_already_cancelled_order_shows_warning(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('order_cancel', args=[self.cancelled_order.pk]), follow=True)
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('cannot be cancelled' in str(m) for m in messages))
+
+class OrderListActionButtonsTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin_b', password='pass123!', role='ADMIN')
+        self.staff = User.objects.create_user(username='staff_b', password='pass123!', role='STAFF')
+
+        self.pending_order = Order.objects.create(
+            user=self.admin, customer_name='Pending Co', total_amount=50,
+            status=Order.STATUS_PENDING,
+        )
+        self.completed_order = Order.objects.create(
+            user=self.admin, customer_name='Completed Co', total_amount=50,
+            status=Order.STATUS_COMPLETED,
+        )
+        self.cancelled_order = Order.objects.create(
+            user=self.admin, customer_name='Cancelled Co', total_amount=50,
+            status=Order.STATUS_CANCELLED,
+        )
+
+    def test_staff_sees_complete_button_not_cancel_on_pending(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn(f"action=\"/orders/{self.pending_order.pk}/complete/\"", html)
+        self.assertNotIn(f"action=\"/orders/{self.pending_order.pk}/cancel/\"", html)
+
+    def test_admin_sees_both_buttons_on_pending(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn(f"action=\"/orders/{self.pending_order.pk}/complete/\"", html)
+        self.assertIn(f"action=\"/orders/{self.pending_order.pk}/cancel/\"", html)
+
+    def test_admin_sees_only_cancel_on_completed(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertNotIn(f"action=\"/orders/{self.completed_order.pk}/complete/\"", html)
+        self.assertIn(f"action=\"/orders/{self.completed_order.pk}/cancel/\"", html)
+
+    def test_no_action_buttons_on_cancelled(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertNotIn(f"action=\"/orders/{self.cancelled_order.pk}/complete/\"", html)
+        self.assertNotIn(f"action=\"/orders/{self.cancelled_order.pk}/cancel/\"", html)

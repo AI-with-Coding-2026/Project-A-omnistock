@@ -79,7 +79,6 @@ def order_index(request):
         'customer': customer,
     })
 
-
 @staff_or_admin_required
 def order_detail(request, pk):
     order = get_object_or_404(
@@ -87,9 +86,9 @@ def order_detail(request, pk):
         pk=pk,
     )
     return render(request, 'orders/order_detail.html', {
-        'order': order
+        'order': order,
+        'is_admin': request.user.role == 'ADMIN',
     })
-
 
 @staff_or_admin_required
 @transaction.atomic
