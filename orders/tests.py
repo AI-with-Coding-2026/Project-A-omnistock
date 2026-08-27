@@ -1680,3 +1680,58 @@ class OrderListActionButtonsTests(TestCase):
         html = response.content.decode()
         self.assertNotIn(f"action=\"/orders/{self.cancelled_order.pk}/complete/\"", html)
         self.assertNotIn(f"action=\"/orders/{self.cancelled_order.pk}/cancel/\"", html)
+
+
+class OrderAdvancedSearchAndFilterTests(TestCase):
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='filter_staff',
+            password='password123',
+            role=getattr(User, 'ROLE_STAFF', 'STAFF'),
+        )
+        self.client.force_login(self.staff_user)
+
+        # إنشاء Supplier تجريبي للاختبار
+        self.supplier = Supplier.objects.create(
+            name='Test Supplier Tech',
+            contact_email='supplier@test.com',
+            phone_number='+1234567890',
+        )
+
+        self.product_laptop = Product.objects.create(
+            name='Gaming Laptop',
+            sku='LAP-001',
+            unit_price=1200,
+            stock_quantity=10,
+            supplier=self.supplier,
+        )
+        self.product_mouse = Product.objects.create(
+            name='Wireless Mouse',
+            sku='MOU-002',
+            unit_price=25,
+            stock_quantity=50,
+            supplier=self.supplier,
+        )
+
+        self.order1 = Order.objects.create(
+            customer_name='Alice Smith',
+            status='pending',
+            user=self.staff_user,
+        )
+        OrderItem.objects.create(order=self.order1, product=self.product_laptop, quantity=1, unit_price=1200)
+
+        self.order2 = Order.objects.create(
+            customer_name='Bob Jones',
+            status='completed',
+            user=self.staff_user,
+        )
+        OrderItem.objects.create(order=self.order2, product=self.product_mouse, quantity=2, unit_price=25)
+
+        self.order3 = Order.objects.create(
+            customer_name='Charlie Brown',
+            status='cancelled',
+            user=self.staff_user,
+        )
+        OrderItem.objects.create(order=self.order3, product=self.product_mouse, quantity=1, unit_price=25)
+
+        self.url = reverse('order_list')

@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -56,9 +56,41 @@ def export_orders_csv(request):
 
 @staff_or_admin_required
 def order_list(request):
+    status = request.GET.get('status', '').strip()
+    search = request.GET.get('search', '').strip()
+    sort = request.GET.get('sort', 'desc').strip()
+
     orders = Order.objects.select_related('user').prefetch_related('items__product').all()
+
+    # 1. Filter by Status (Pending, Completed, Cancelled)
+    if status and status in [choice[0] for choice in Order.STATUS_CHOICES]:
+        orders = orders.filter(status=status)
+
+    # 2. Search across Order ID/Number, Customer Name, and Product Name
+    if search:
+        search_filter = (
+            Q(customer_name__icontains=search) |
+            Q(items__product__name__icontains=search)
+        )
+        if hasattr(Order, 'order_number'):
+            search_filter |= Q(order_number__icontains=search)
+        if search.isdigit():
+            search_filter |= Q(id=int(search))
+
+        orders = orders.filter(search_filter).distinct()
+
+    # 3. Sort by creation date (asc/desc)
+    if sort == 'asc':
+        orders = orders.order_by('created_at')
+    else:
+        orders = orders.order_by('-created_at')
+
     return render(request, 'orders/order_list.html', {
         'orders': orders,
+        'status_choices': Order.STATUS_CHOICES,
+        'selected_status': status,
+        'search_query': search,
+        'selected_sort': sort,
         'is_admin': request.user.role == 'ADMIN',
     })
 
