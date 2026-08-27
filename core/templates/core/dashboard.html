@@ -59,6 +59,30 @@
 
     </section>
 
+    <!-- Revenue Chart -->
+    <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Revenue over time</h2>
+            <p class="text-sm text-gray-500 mt-0.5">Monthly revenue from completed orders.</p>
+        </div>
+
+        {% if revenue_chart_labels %}
+            {{ revenue_chart_labels|json_script:"revenue-labels-data" }}
+            {{ revenue_chart_values|json_script:"revenue-values-data" }}
+            <div class="relative" style="height: 320px;">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        {% else %}
+            <div class="flex flex-col items-center justify-center text-center py-16 text-gray-400">
+                <svg class="w-10 h-10 mb-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4">
+                    <path d="M3 17V9M9 17V5M15 17v-7"/>
+                </svg>
+                <p class="font-medium text-gray-600">No revenue data yet</p>
+                <p class="text-sm mt-1">The chart will appear once completed orders start generating revenue.</p>
+            </div>
+        {% endif %}
+    </section>
+
     <!-- Low Stock -->
     <section class="bg-white rounded-xl shadow-sm border border-gray-200">
 
@@ -102,4 +126,49 @@
 
 </div>
 
+{% if revenue_chart_labels %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    const revenueLabels = JSON.parse(document.getElementById('revenue-labels-data').textContent);
+    const revenueData = JSON.parse(document.getElementById('revenue-values-data').textContent);
+
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: revenueLabels,
+            datasets: [{
+                label: 'Revenue ($)',
+                data: revenueData,
+                borderColor: '#0f172a',
+                backgroundColor: 'rgba(15, 23, 42, 0.08)',
+                fill: true,
+                tension: 0.35,
+                pointRadius: 3,
+                pointBackgroundColor: '#0f172a',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => '$' + context.parsed.y.toLocaleString(),
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: (value) => '$' + value.toLocaleString(),
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
 {% endblock %}

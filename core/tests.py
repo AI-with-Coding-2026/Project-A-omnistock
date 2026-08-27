@@ -369,3 +369,95 @@ class RevenueCalculationTests(TestCase):
             monthly_revenue[1]["total"],
             Decimal("200.00"),
         )
+class DashboardRevenueChartTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='chart_admin',
+            password='password123',
+            role='ADMIN',
+        )
+        self.client.force_login(self.admin)
+        self.dashboard_url = reverse('dashboard')
+
+    def test_completed_orders_appear_in_dashboard_chart_data(self):
+        Order.objects.create(
+            user=self.admin,
+            customer_name='Chart Customer',
+            status=Order.STATUS_COMPLETED,
+            total_amount=Decimal('500.00'),
+        )
+
+        response = self.client.get(self.dashboard_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('revenue_chart_labels', response.context)
+        self.assertIn('revenue_chart_values', response.context)
+        self.assertTrue(len(response.context['revenue_chart_labels']) >= 1)
+        self.assertIn(500.0, response.context['revenue_chart_values'])
+
+    def test_pending_and_cancelled_orders_are_excluded(self):
+        Order.objects.create(
+            user=self.admin,
+            customer_name='Pending Customer',
+            status=Order.STATUS_PENDING,
+            total_amount=Decimal('300.00'),
+        )
+        Order.objects.create(
+            user=self.admin,
+            customer_name='Cancelled Customer',
+            status=Order.STATUS_CANCELLED,
+            total_amount=Decimal('999.00'),
+        )
+
+        response = self.client.get(self.dashboard_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['revenue_chart_values'], [])
+
+    def test_monthly_labels_and_totals_are_correct(self):
+        order_jan_1 = Order.objects.create(
+            user=self.admin,
+            customer_name='Jan Customer 1',
+            status=Order.STATUS_COMPLETED,
+            total_amount=Decimal('100.00'),
+        )
+        Order.objects.filter(pk=order_jan_1.pk).update(
+            created_at=timezone.datetime(2026, 1, 15, tzinfo=timezone.get_current_timezone())
+        )
+
+        order_jan_2 = Order.objects.create(
+            user=self.admin,
+            customer_name='Jan Customer 2',
+            status=Order.STATUS_COMPLETED,
+            total_amount=Decimal('150.00'),
+        )
+        Order.objects.filter(pk=order_jan_2.pk).update(
+            created_at=timezone.datetime(2026, 1, 15, tzinfo=timezone.get_current_timezone())
+        )
+
+        order_feb = Order.objects.create(
+            user=self.admin,
+            customer_name='Feb Customer',
+            status=Order.STATUS_COMPLETED,
+            total_amount=Decimal('200.00'),
+        )
+        Order.objects.filter(pk=order_feb.pk).update(
+            created_at=timezone.datetime(2026, 2, 15, tzinfo=timezone.get_current_timezone())
+        )
+
+        response = self.client.get(self.dashboard_url)
+        labels = response.context['revenue_chart_labels']
+        values = response.context['revenue_chart_values']
+
+        self.assertEqual(len(labels), 2)
+        self.assertEqual(values[0], 250.0)
+        self.assertEqual(values[1], 200.0)
+
+    def test_empty_revenue_data_is_handled_safely(self):
+        response = self.client.get(self.dashboard_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['revenue_chart_labels'], [])
+        self.assertEqual(response.context['revenue_chart_values'], [])
+        self.assertContains(response, 'No revenue data yet')
+        self.assertNotContains(response, 'chart.js@4.4.0')
