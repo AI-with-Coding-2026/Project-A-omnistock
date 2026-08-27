@@ -21,7 +21,6 @@ def admin_required(view_func):
         return view_func(request, *args, **kwargs)
     return _wrapped
 
-
 def admin_or_inventory_manager_required(view_func):
     """
     Decorator that allows both Admin and Inventory Manager roles.
@@ -35,7 +34,6 @@ def admin_or_inventory_manager_required(view_func):
             raise PermissionDenied
         return view_func(request, *args, **kwargs)
     return _wrapped
-
 
 def staff_or_admin_required(view_func):
     """Allow any authenticated staff-type or admin user."""
@@ -55,6 +53,19 @@ def supplier_required(view_func):
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
         if getattr(request.user, 'role', None) != 'SUPPLIER':
+            raise PermissionDenied
+        return view_func(request, *args, **kwargs)
+    return _wrapped 
+
+def admin_or_sales_rep_required(view_func):
+    """
+    Decorator that allows both Admin and Sales Rep roles.
+    Used for Customer CRUD — Inventory Managers are blocked (403).
+    """
+    @login_required
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if getattr(request.user, 'role', None) not in ('ADMIN', 'SALES_REP'):
             raise PermissionDenied
         return view_func(request, *args, **kwargs)
     return _wrapped

@@ -18,6 +18,19 @@ def generate_order_number():
 def generate_invoice_number():
     return f'INV-{uuid.uuid4().hex[:10].upper()}'
 
+class Customer(models.Model):
+    name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=50, blank=True)
+    address = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
 
 class Order(models.Model):
     STATUS_PENDING = 'pending'
@@ -39,6 +52,13 @@ class Order(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     order_number = models.CharField(max_length=50, unique=True, default=generate_order_number)
     customer_name = models.CharField(max_length=255)
+    customer = models.ForeignKey(
+        'orders.Customer',
+        on_delete=models.PROTECT,
+        related_name='orders',
+        null=True,
+        blank=True,
+    )
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
