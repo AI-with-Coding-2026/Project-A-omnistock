@@ -1,3 +1,6 @@
+import csv
+import io
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -6,8 +9,9 @@ from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.db.models import F
 from django.template.loader import render_to_string
-from django.test import RequestFactory, Client, TestCase
-from django.urls import reverse, resolve
+from django.test import Client, RequestFactory, TestCase
+from django.urls import resolve, reverse
+from django.utils import timezone
 
 from inventory.models import Product, Supplier
 from orders.models import InvalidOrderTransitionError, Invoice, Order, OrderItem
@@ -473,7 +477,6 @@ class OrderCancellationTests(TestCase):
         order = self.create_completed_order()
         self.client.force_login(self.admin)
 
-        self.client.post(reverse('order_cancel', args=[order.pk]))
         self.client.post(reverse('order_cancel', args=[order.pk]))
 
         order.refresh_from_db()
@@ -1379,7 +1382,6 @@ class OrderCancellationIdempotencyTests(TestCase):
 
         self.client.force_login(self.user)
         self.client.post(reverse('order_cancel', args=[order.pk]))
-        self.client.post(reverse('order_cancel', args=[order.pk]))
 
         order.refresh_from_db()
         self.product_a.refresh_from_db()
@@ -1388,3 +1390,348 @@ class OrderCancellationIdempotencyTests(TestCase):
         self.assertEqual(order.status, Order.STATUS_CANCELLED)
         self.assertEqual(self.product_a.stock_quantity, initial_stock_a + 4)
         self.assertEqual(self.product_b.stock_quantity, initial_stock_b + 1)
+
+class ReportsAndExportTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='reports_admin',
+            password='password123',
+            role=User.ROLE_ADMIN,
+        )
+        self.sales_rep = User.objects.create_user(
+            username='reports_sales_rep',
+            password='password123',
+            role=User.ROLE_SALES_REP,
+        )
+        
+        from inventory.models import Supplier, Product
+        supplier = Supplier.objects.create(name='Test Supplier', email='test@supplier.com')
+        self.prod_a = Product.objects.create(supplier=supplier, name='Prod A', unit_price=Decimal('10.00'), stock_quantity=100)
+        self.prod_b = Product.objects.create(supplier=supplier, name='Prod B', unit_price=Decimal('20.00'), stock_quantity=100)
+
+        self.january_order = self.create_order(
+            'January Customer', Decimal('125.50'), Order.STATUS_COMPLETED,
+            datetime(2026, 1, 15, tzinfo=timezone.get_current_timezone()),
+            [(self.prod_a, 5), (self.prod_b, 2)]
+        )
+        self.january_order_two = self.create_order(
+            'Second January Customer', Decimal('74.50'), Order.STATUS_COMPLETED,
+            datetime(2026, 1, 28, tzinfo=timezone.get_current_timezone()),
+            [(self.prod_a, 3)]
+        )
+        self.february_order = self.create_order(
+            'February Customer', Decimal('300.00'), Order.STATUS_COMPLETED,
+            datetime(2026, 2, 10, tzinfo=timezone.get_current_timezone()),
+            [(self.prod_b, 10)]
+        )
+        self.pending_order = self.create_order(
+            'Pending Customer', Decimal('999.00'), Order.STATUS_PENDING,
+            datetime(2026, 1, 20, tzinfo=timezone.get_current_timezone()),
+            [(self.prod_a, 50)] # Should not appear in top_products
+        )
+        self.cancelled_order = self.create_order(
+            'Cancelled Customer', Decimal('100.00'), Order.STATUS_CANCELLED,
+            datetime(2026, 1, 21, tzinfo=timezone.get_current_timezone()),
+            [(self.prod_b, 100)] # Should not appear in top_products
+        )
+
+    def create_order(self, customer, total, status, created_at, items=None):
+        order = Order.objects.create(
+            user=self.sales_rep,
+            customer_name=customer,
+            total_amount=total,
+            status=status,
+        )
+        if items:
+            for product, qty in items:
+                OrderItem.objects.create(
+                    order=order, product=product, quantity=qty, unit_price=product.unit_price
+                )
+
+        Order.objects.filter(pk=order.pk).update(created_at=created_at)
+        order.refresh_from_db()
+        return order
+
+    def test_admin_sees_completed_revenue_grouped_by_month_and_top_products(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('reports'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/reports.html')
+        
+        # Check Monthly Revenue
+        revenue = list(response.context['monthly_revenue'])
+        self.assertEqual(len(revenue), 2)
+        self.assertEqual(revenue[0]['month'].month, 1)
+        self.assertEqual(revenue[0]['total'], Decimal('200.00'))
+        self.assertEqual(revenue[1]['month'].month, 2)
+        self.assertEqual(revenue[1]['total'], Decimal('300.00'))
+        
+        # Check Top Products (should exclude pending and cancelled orders)
+        # Prod B: 2 (completed Jan) + 10 (completed Feb) = 12
+        # Prod A: 5 (completed Jan) + 3 (completed Jan) = 8
+        top_products = list(response.context['top_products'])
+        self.assertEqual(len(top_products), 2)
+        self.assertEqual(top_products[0]['product__name'], 'Prod B')
+        self.assertEqual(top_products[0]['total_qty'], 12)
+        self.assertEqual(top_products[1]['product__name'], 'Prod A')
+        self.assertEqual(top_products[1]['total_qty'], 8)
+
+        self.assertContains(response, 'Export Orders CSV')
+
+    def test_reports_rejects_non_admin(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(reverse('reports'))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_export_contains_only_completed_orders(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('export_orders_csv'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/csv')
+        self.assertEqual(
+            response['Content-Disposition'],
+            'attachment; filename="orders.csv"',
+        )
+        rows = list(csv.reader(io.StringIO(response.content.decode())))
+        self.assertEqual(rows[0], [
+            'Order #', 'Customer', 'Sales Rep', 'Total', 'Status', 'Created At',
+        ])
+        exported_numbers = {row[0] for row in rows[1:]}
+        self.assertEqual(exported_numbers, {
+            self.january_order.order_number,
+            self.january_order_two.order_number,
+            self.february_order.order_number,
+        })
+        self.assertNotIn(self.pending_order.order_number, exported_numbers)
+
+    def test_export_rejects_non_admin(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.get(reverse('export_orders_csv'))
+
+        self.assertEqual(response.status_code, 403)
+
+
+class OrderStatusTransitionViewTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin_t', password='pass123!', role='ADMIN')
+        self.staff = User.objects.create_user(username='staff_t', password='pass123!', role='STAFF')
+        self.sales_rep = User.objects.create_user(username='sales_t', password='pass123!', role='SALES_REP')
+
+        from inventory.models import Product, Supplier
+        supplier = Supplier.objects.create(name='Test Supplier', email='s@test.com', phone='111222333')
+        self.product = Product.objects.create(
+            sku='TST-1', name='Test Product', supplier=supplier,
+            unit_price=10, stock_quantity=50, reorder_level=5,
+        )
+
+        self.pending_order = Order.objects.create(
+            user=self.admin, customer_name='Pending Co', total_amount=100,
+            status=Order.STATUS_PENDING,
+        )
+        OrderItem.objects.create(
+            order=self.pending_order, product=self.product, quantity=5, unit_price=10,
+        )
+
+        self.completed_order = Order.objects.create(
+            user=self.admin, customer_name='Completed Co', total_amount=100,
+            status=Order.STATUS_COMPLETED,
+        )
+        OrderItem.objects.create(
+            order=self.completed_order, product=self.product, quantity=5, unit_price=10,
+        )
+
+        self.cancelled_order = Order.objects.create(
+            user=self.admin, customer_name='Cancelled Co', total_amount=100,
+            status=Order.STATUS_CANCELLED,
+        )
+
+    # --- order_complete ---
+
+    def test_staff_can_complete_pending_order(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse('order_complete', args=[self.pending_order.pk]))
+        self.pending_order.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.pending_order.status, Order.STATUS_COMPLETED)
+
+    def test_admin_can_complete_pending_order(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('order_complete', args=[self.pending_order.pk]))
+        self.pending_order.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.pending_order.status, Order.STATUS_COMPLETED)
+
+    def test_complete_already_completed_order_shows_warning_no_crash(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse('order_complete', args=[self.completed_order.pk]), follow=True)
+        self.completed_order.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.completed_order.status, Order.STATUS_COMPLETED)
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('cannot be marked as completed' in str(m) for m in messages))
+
+    def test_complete_cancelled_order_blocked(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('order_complete', args=[self.cancelled_order.pk]), follow=True)
+        self.cancelled_order.refresh_from_db()
+        self.assertEqual(self.cancelled_order.status, Order.STATUS_CANCELLED)
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('cannot be marked as completed' in str(m) for m in messages))
+
+    def test_unauthenticated_user_cannot_complete_order(self):
+        response = self.client.post(reverse('order_complete', args=[self.pending_order.pk]))
+        self.pending_order.refresh_from_db()
+        self.assertNotEqual(response.status_code, 200)
+        self.assertEqual(self.pending_order.status, Order.STATUS_PENDING)
+
+    # --- order_cancel ---
+
+    def test_admin_can_cancel_pending_order_and_stock_restored(self):
+        self.product.stock_quantity = 45
+        self.product.save()
+
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('order_cancel', args=[self.pending_order.pk]))
+        self.pending_order.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.pending_order.status, Order.STATUS_CANCELLED)
+        self.assertEqual(self.product.stock_quantity, 50)
+
+    def test_admin_can_cancel_completed_order(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('order_cancel', args=[self.completed_order.pk]))
+        self.completed_order.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.completed_order.status, Order.STATUS_CANCELLED)
+
+    def test_staff_cannot_cancel_order(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse('order_cancel', args=[self.pending_order.pk]))
+        self.pending_order.refresh_from_db()
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.pending_order.status, Order.STATUS_PENDING)
+
+    def test_sales_rep_cannot_cancel_order(self):
+        self.client.force_login(self.sales_rep)
+        response = self.client.post(reverse('order_cancel', args=[self.pending_order.pk]))
+        self.assertEqual(response.status_code, 403)
+
+    def test_cancel_already_cancelled_order_shows_warning(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('order_cancel', args=[self.cancelled_order.pk]), follow=True)
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('cannot be cancelled' in str(m) for m in messages))
+
+class OrderListActionButtonsTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin_b', password='pass123!', role='ADMIN')
+        self.staff = User.objects.create_user(username='staff_b', password='pass123!', role='STAFF')
+
+        self.pending_order = Order.objects.create(
+            user=self.admin, customer_name='Pending Co', total_amount=50,
+            status=Order.STATUS_PENDING,
+        )
+        self.completed_order = Order.objects.create(
+            user=self.admin, customer_name='Completed Co', total_amount=50,
+            status=Order.STATUS_COMPLETED,
+        )
+        self.cancelled_order = Order.objects.create(
+            user=self.admin, customer_name='Cancelled Co', total_amount=50,
+            status=Order.STATUS_CANCELLED,
+        )
+
+    def test_staff_sees_complete_button_not_cancel_on_pending(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn(f"action=\"/orders/{self.pending_order.pk}/complete/\"", html)
+        self.assertNotIn(f"action=\"/orders/{self.pending_order.pk}/cancel/\"", html)
+
+    def test_admin_sees_both_buttons_on_pending(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn(f"action=\"/orders/{self.pending_order.pk}/complete/\"", html)
+        self.assertIn(f"action=\"/orders/{self.pending_order.pk}/cancel/\"", html)
+
+    def test_admin_sees_only_cancel_on_completed(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertNotIn(f"action=\"/orders/{self.completed_order.pk}/complete/\"", html)
+        self.assertIn(f"action=\"/orders/{self.completed_order.pk}/cancel/\"", html)
+
+    def test_no_action_buttons_on_cancelled(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertNotIn(f"action=\"/orders/{self.cancelled_order.pk}/complete/\"", html)
+        self.assertNotIn(f"action=\"/orders/{self.cancelled_order.pk}/cancel/\"", html)
+
+
+class OrderAdvancedSearchAndFilterTests(TestCase):
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='filter_staff',
+            password='password123',
+            role=getattr(User, 'ROLE_STAFF', 'STAFF'),
+        )
+        self.client.force_login(self.staff_user)
+
+        # إنشاء Supplier تجريبي للاختبار
+        self.supplier = Supplier.objects.create(
+            name='Test Supplier Tech',
+            contact_email='supplier@test.com',
+            phone_number='+1234567890',
+        )
+
+        self.product_laptop = Product.objects.create(
+            name='Gaming Laptop',
+            sku='LAP-001',
+            unit_price=1200,
+            stock_quantity=10,
+            supplier=self.supplier,
+        )
+        self.product_mouse = Product.objects.create(
+            name='Wireless Mouse',
+            sku='MOU-002',
+            unit_price=25,
+            stock_quantity=50,
+            supplier=self.supplier,
+        )
+
+        self.order1 = Order.objects.create(
+            customer_name='Alice Smith',
+            status='pending',
+            user=self.staff_user,
+        )
+        OrderItem.objects.create(order=self.order1, product=self.product_laptop, quantity=1, unit_price=1200)
+
+        self.order2 = Order.objects.create(
+            customer_name='Bob Jones',
+            status='completed',
+            user=self.staff_user,
+        )
+        OrderItem.objects.create(order=self.order2, product=self.product_mouse, quantity=2, unit_price=25)
+
+        self.order3 = Order.objects.create(
+            customer_name='Charlie Brown',
+            status='cancelled',
+            user=self.staff_user,
+        )
+        OrderItem.objects.create(order=self.order3, product=self.product_mouse, quantity=1, unit_price=25)
+
+        self.url = reverse('order_list')

@@ -26,19 +26,14 @@ class User(AbstractUser):
     )
 
     def save(self, *args, **kwargs):
-        # Admin gets superuser access; staff-type roles get staff access.
         if self.role == self.ROLE_ADMIN:
             self.is_staff = True
             self.is_superuser = True
-        elif self.role in (
-            self.ROLE_STAFF,
-            self.ROLE_INVENTORY_MANAGER,
-            self.ROLE_SALES_REP,
-        ):
+        elif self.is_superuser:
             self.is_staff = True
-            self.is_superuser = False
         else:
             self.is_staff = False
             self.is_superuser = False
         super().save(*args, **kwargs)
-        
+
+

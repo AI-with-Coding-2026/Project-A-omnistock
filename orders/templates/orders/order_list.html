@@ -28,6 +28,50 @@
     </div>
 
 
+   <!-- Filters & Search Toolbar -->
+   <div class="bg-white p-4 border border-gray-200 rounded-xl shadow-sm">
+    <form method="get" action="{% url 'order_list' %}" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- Search -->
+        <div>
+            <label for="search" class="block text-xs font-semibold text-gray-600 mb-1">Search</label>
+            <input type="text" name="search" id="search" value="{{ search_query }}"
+                   placeholder="Order ID, Customer, Product..."
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:outline-none">
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+            <label for="status" class="block text-xs font-semibold text-gray-600 mb-1">Status</label>
+            <select name="status" id="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:outline-none">
+                <option value="">All Statuses</option>
+                {% for val, label in status_choices %}
+                    <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Sort By Date -->
+        <div>
+            <label for="sort" class="block text-xs font-semibold text-gray-600 mb-1">Sort by Date</label>
+            <select name="sort" id="sort" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:outline-none">
+                <option value="desc" {% if selected_sort == 'desc' %}selected{% endif %}>Newest First</option>
+                <option value="asc" {% if selected_sort == 'asc' %}selected{% endif %}>Oldest First</option>
+            </select>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-end gap-2">
+            <button type="submit" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors">
+                Filter
+            </button>
+            <a href="{% url 'order_list' %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg text-sm transition-colors text-center">
+                Reset
+            </a>
+        </div>
+    </form>
+</div> 
+    
+
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
 
         {% if orders %}
@@ -44,6 +88,7 @@
                             <th class="px-6 py-4 font-semibold text-gray-600">Status</th>
                             <th class="px-6 py-4 font-semibold text-gray-600">Total</th>
                             <th class="px-6 py-4 font-semibold text-gray-600">Created</th>
+                            <th class="px-6 py-4 font-semibold text-gray-600">Updated</th>
                             <th class="px-6 py-4 font-semibold text-gray-600 text-right">Actions</th>
                         </tr>
                     </thead>
@@ -73,13 +118,23 @@
                                 </td>
                                 <td class="px-6 py-4 font-semibold text-gray-900">${{ order.total_amount }}</td>
                                 <td class="px-6 py-4 text-gray-500 whitespace-nowrap">{{ order.created_at|date:"M d, Y H:i" }}</td>
+                                <td class="px-6 py-4 text-gray-500 whitespace-nowrap">{{ order.updated_at|date:"M d, Y H:i" }}</td>
                                 <td class="px-6 py-4">
                                     <div class="flex justify-end items-center gap-2">
                                         <a href="{% url 'invoice_view' order.pk %}"
                                            class="px-3 py-1.5 rounded-md text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
                                             Invoice
                                         </a>
-                                        {% if is_admin and order.status == 'completed' %}
+                                        {% if order.can_mark_completed %}
+                                            <form method="post" action="{% url 'order_complete' order.pk %}" class="inline">
+                                                {% csrf_token %}
+                                                <button type="submit"
+                                                    class="px-3 py-1.5 rounded-md text-xs font-medium text-green-600 bg-green-50 hover:bg-green-100 transition-colors">
+                                                    Complete
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        {% if is_admin and order.can_cancel %}
                                             <form method="post" action="{% url 'order_cancel' order.pk %}" class="inline">
                                                 {% csrf_token %}
                                                 <button type="submit"
@@ -122,13 +177,23 @@
                             </div>
                             <div class="flex justify-between py-0.5"><span class="text-gray-500">Total</span><span class="font-semibold text-gray-900">${{ order.total_amount }}</span></div>
                             <div class="flex justify-between py-0.5"><span class="text-gray-500">Created</span><span>{{ order.created_at|date:"M d, Y H:i" }}</span></div>
+                            <div class="flex justify-between py-0.5"><span class="text-gray-500">Updated</span><span>{{ order.updated_at|date:"M d, Y H:i" }}</span></div>
                         </div>
                         <div class="flex items-center gap-2 pt-1">
                             <a href="{% url 'invoice_view' order.pk %}"
                                class="flex-1 text-center px-3 py-2 rounded-md text-xs font-medium text-blue-600 bg-blue-50">
                                 Invoice
                             </a>
-                            {% if is_admin and order.status == 'completed' %}
+                            {% if order.can_mark_completed %}
+                                <form method="post" action="{% url 'order_complete' order.pk %}" class="flex-1">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                        class="w-full px-3 py-2 rounded-md text-xs font-medium text-green-600 bg-green-50">
+                                        Complete
+                                    </button>
+                                </form>
+                            {% endif %}
+                            {% if is_admin and order.can_cancel %}
                                 <form method="post" action="{% url 'order_cancel' order.pk %}" class="flex-1">
                                     {% csrf_token %}
                                     <button type="submit"

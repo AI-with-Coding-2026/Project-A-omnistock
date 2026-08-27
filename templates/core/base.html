@@ -215,19 +215,22 @@
                     Orders
                 </a>
 
-                {% if reports_ready and request.user.role == 'ADMIN' %}
-                <a href="{% url 'reports' %}"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-
-                          transition-colors border-l-2 border-transparent text-slate-300
-                          hover:bg-slate-800 hover:text-white">
-                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                        stroke-width="1.6">
-                        <path d="M4 4h12v12H4z" />
-                        <path d="M7 8h6M7 11h6M7 14h3" />
-                    </svg>
-                    Reports
-                </a>
+                {% if user.role == 'ADMIN' %}
+                    {% url 'reports' as reports_url %}
+                    <a href="{{ reports_url }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                              transition-colors border-l-2
+                              {% if request.resolver_match.url_name == 'reports' %}
+                                  bg-slate-800 border-slate-100 text-white
+                              {% else %}
+                                  border-transparent text-slate-300 hover:bg-slate-800 hover:text-white
+                              {% endif %}">
+                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+                            <path d="M4 4h12v12H4z"/>
+                            <path d="M7 8h6M7 11h6M7 14h3"/>
+                        </svg>
+                        Reports
+                    </a>
                 {% endif %}
 
 
@@ -243,15 +246,7 @@
                     Invoices
                 </a>
 
-                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                              border-l-2 border-transparent text-amber-300
-                              hover:bg-slate-800 hover:text-white transition-colors">
-                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                        stroke-width="1.6">
-                        <path d="M3 17V9M9 17V5M15 17v-7" />
-                    </svg>
-                    Executive Reports
-                </a>
+
 
                 {% endif %}
 
