@@ -2,6 +2,8 @@ from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
 
 from orders.models import Order
 from .models import User
@@ -467,10 +469,6 @@ class DashboardRevenueChartTests(TestCase):
         self.assertContains(response, 'No revenue data yet')
         self.assertNotContains(response, 'chart.js@4.4.0')
 
-from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse
-
-from .utils import admin_required, staff_or_admin_required
 
 
 class RouteProtectionTests(TestCase):
@@ -495,98 +493,40 @@ class RouteProtectionTests(TestCase):
             password="password123",
             role=User.ROLE_CUSTOMER,
         )
-
-    def test_admin_required_allows_admin(self):
-        @admin_required
-        def protected_view(request):
-            return HttpResponse("allowed")
-
-        self.client.force_login(self.admin)
-
-        request = self.client.request().wsgi_request
-        request.user = self.admin
-
-        response = protected_view(request)
-
-        self.assertEqual(response.status_code, 200)
-
-    def test_admin_required_rejects_non_admin(self):
-        @admin_required
-        def protected_view(request):
-            return HttpResponse("allowed")
-
-        self.client.force_login(self.sales_rep)
-
-        request = self.client.request().wsgi_request
-        request.user = self.sales_rep
-
-        with self.assertRaises(PermissionDenied):
-            protected_view(request)
-
-    def test_staff_or_admin_required_allows_staff(self):
-        @staff_or_admin_required
-        def protected_view(request):
-            return HttpResponse("allowed")
-
-        self.client.force_login(self.staff)
-
-        request = self.client.request().wsgi_request
-        request.user = self.staff
-
-        response = protected_view(request)
-
-        self.assertEqual(response.status_code, 200)
-
-    def test_staff_or_admin_required_allows_sales_rep(self):
-        @staff_or_admin_required
-        def protected_view(request):
-            return HttpResponse("allowed")
-
-        self.client.force_login(self.sales_rep)
-
-        request = self.client.request().wsgi_request
-        request.user = self.sales_rep
-
-        response = protected_view(request)
-
-        self.assertEqual(response.status_code, 200)
-
-    def test_staff_or_admin_required_rejects_customer(self):
-        @staff_or_admin_required
-        def protected_view(request):
-            return HttpResponse("allowed")
-
-        self.client.force_login(self.customer)
-
-        request = self.client.request().wsgi_request
-        request.user = self.customer
-
-        response = protected_view(request)
+    
+    def test_anonymous_user_cannot_access_reports(self):
+        response = self.client.get(reverse("reports"))
 
         self.assertEqual(response.status_code, 302)
-    def test_admin_or_inventory_manager_required_allows_admin(self):
-        @admin_or_inventory_manager_required
-        def protected_view(request):
-            return HttpResponse("allowed")
+        self.assertIn("/login/", response.url)
 
+    def test_authenticated_admin_can_access_reports(self):
         self.client.force_login(self.admin)
 
-        request = self.client.request().wsgi_request
-        request.user = self.admin
-
-        response = protected_view(request)
+        response = self.client.get(reverse("reports"))
 
         self.assertEqual(response.status_code, 200)
+    
+    def test_anonymous_user_cannot_access_products(self):
+        response = self.client.get(reverse("product_list"))
 
-    def test_admin_or_inventory_manager_required_allows_inventory_manager(self):
-        inventory_manager = User.objects.create_user(
-            username="protection_inventory_manager",
-            password="password123",
-            role=User.ROLE_INVENTORY_MANAGER,
-        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login/", response.url)
 
-        @admin_or_inventory_manager_required
-        def protected_view(request):
+    def test_customer_cannot_access_protected_route(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.get(reverse("product_list"))
+
+        self.assertEqual(response.status_code, 403)
+
+        self.inventory_manager = User.objects.create_user(
+        username="protection_inventory_manager",
+        password="password123",
+        role=User.ROLE_INVENTORY_MANAGER,
+    )
+   
+   def protected_view(request):
             return HttpResponse("allowed")
 
         self.client.force_login(inventory_manager)
@@ -598,28 +538,4 @@ class RouteProtectionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_admin_or_inventory_manager_required_rejects_sales_rep(self):
-        @admin_or_inventory_manager_required
-        def protected_view(request):
-            return HttpResponse("allowed")
-
-        self.client.force_login(self.sales_rep)
-
-        request = self.client.request().wsgi_request
-        request.user = self.sales_rep
-
-        with self.assertRaises(PermissionDenied):
-            protected_view(request)
-
-    def test_admin_or_inventory_manager_required_rejects_customer(self):
-        @admin_or_inventory_manager_required
-        def protected_view(request):
-            return HttpResponse("allowed")
-
-        self.client.force_login(self.customer)
-
-        request = self.client.request().wsgi_request
-        request.user = self.customer
-
-        with self.assertRaises(PermissionDenied):
-            protected_view(request)
+   

@@ -12,6 +12,8 @@ class RoleProtectionMiddleware:
         "/inventory/",
         "/orders/",
         "/reports/",
+        "/suppliers/",
+        "/products/",
     )
 
     def __init__(self, get_response):

@@ -304,6 +304,40 @@ class OrderItemCreationTests(TestCase):
                 unit_price=Decimal('250.50'),
             ).exists()
         )
+        
+    def test_order_creation_rejects_quantity_above_stock(self):
+        product = Product.objects.create(
+            name="Test Product",
+            sku="TEST-001",
+            unit_price=Decimal("10.00"),
+            stock_quantity=5,
+            reorder_level=2,
+            # add any other required Product fields
+        )
+
+        initial_order_count = Order.objects.count()
+        initial_item_count = OrderItem.objects.count()
+
+        response = self.client.post(
+            reverse("order_create"),
+            {
+                # include the required OrderForm fields
+                "customer_name": "Test Customer",
+
+                "items[][product]": str(product.pk),
+                "items[][quantity]": "6",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        product.refresh_from_db()
+
+        self.assertEqual(product.stock_quantity, 5)
+        self.assertEqual(Order.objects.count(), initial_order_count)
+        self.assertEqual(OrderItem.objects.count(), initial_item_count)
+
+        self.assertContains(response, "Insufficient stock")
 
     def test_uses_database_price_not_browser_value(self):
         self.login()
