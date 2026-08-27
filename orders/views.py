@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from django.contrib import messages
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, ProtectedError, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -26,9 +26,8 @@ ORDER_CANCEL_REDIRECT = 'order_list'
 def customer_list(request):
     customers = Customer.objects.annotate(
         order_count=Count('orders'),
-    ).prefetch_related('orders')
+    )
     return render(request, 'orders/customer_list.html', {'customers': customers})
-
 
 @admin_or_sales_rep_required
 def customer_create(request):
@@ -65,6 +64,20 @@ def customer_detail(request, pk):
     )
     return render(request, 'orders/customer_detail.html', {'customer': customer})
 
+@admin_or_sales_rep_required
+def customer_delete(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    if request.method == 'POST':
+        try:
+            customer.delete()
+            messages.success(request, 'Customer deleted.')
+        except ProtectedError:
+            messages.error(
+                request,
+                'This customer cannot be deleted because they have existing orders.',
+            )
+        return redirect('customer_list')
+    return render(request, 'orders/customer_confirm_delete.html', {'object': customer})
 
 @admin_required
 def export_orders_csv(request):

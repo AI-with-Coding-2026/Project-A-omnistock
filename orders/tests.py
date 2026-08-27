@@ -1451,6 +1451,30 @@ class CustomerCRUDTests(TestCase):
         response = self.client.get(reverse('customer_detail', args=[self.existing.pk]))
         self.assertEqual(response.status_code, 403)
 
+    def test_admin_can_delete_customer_with_no_orders(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('customer_delete', args=[self.existing.pk]))
+        self.assertRedirects(response, reverse('customer_list'))
+        self.assertFalse(Customer.objects.filter(pk=self.existing.pk).exists())
+
+    def test_delete_blocked_when_customer_has_orders(self):
+        Order.objects.create(
+            user=self.admin,
+            customer=self.existing,
+            customer_name=self.existing.name,
+            status=Order.STATUS_PENDING,
+            total_amount=Decimal('50.00'),
+        )
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('customer_delete', args=[self.existing.pk]))
+        self.assertRedirects(response, reverse('customer_list'))
+        self.assertTrue(Customer.objects.filter(pk=self.existing.pk).exists())
+
+    def test_inventory_manager_cannot_delete_customer(self):
+        self.client.force_login(self.inventory_manager)
+        response = self.client.get(reverse('customer_delete', args=[self.existing.pk]))
+        self.assertEqual(response.status_code, 403)
+
     def test_anonymous_redirected_to_login(self):
         response = self.client.get(reverse('customer_list'))
         self.assertRedirects(
