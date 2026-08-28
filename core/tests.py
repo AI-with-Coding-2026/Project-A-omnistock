@@ -2,9 +2,16 @@ from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
 
 from orders.models import Order
 from .models import User
+from core.utils import (
+    admin_required,
+    admin_or_inventory_manager_required,
+    staff_or_admin_required,
+)
 
 
 class RoleBasedLoginViewTests(TestCase):
@@ -461,3 +468,46 @@ class DashboardRevenueChartTests(TestCase):
         self.assertEqual(response.context['revenue_chart_values'], [])
         self.assertContains(response, 'No revenue data yet')
         self.assertNotContains(response, 'chart.js@4.4.0')
+
+class RouteProtectionTests(TestCase):
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="protection_admin",
+            password="password123",
+            role=User.ROLE_ADMIN,
+        )
+
+        self.customer = User.objects.create_user(
+            username="protection_customer",
+            password="password123",
+            role=User.ROLE_CUSTOMER,
+        )
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        response = self.client.get(reverse("product_list"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f"{reverse('login')}?next={reverse('product_list')}",
+        )
+
+    def test_anonymous_user_can_access_login_page(self):
+        response = self.client.get(reverse("login"))
+
+        self.assertNotEqual(response.status_code, 302)
+
+    def test_authenticated_admin_can_access_products(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("product_list"))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_authenticated_customer_is_forbidden_from_products(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.get(reverse("product_list"))
+
+        self.assertEqual(response.status_code, 403)

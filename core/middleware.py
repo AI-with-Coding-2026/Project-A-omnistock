@@ -5,6 +5,7 @@ from django.urls import reverse
 class RoleProtectionMiddleware:
     """
     Redirect anonymous users away from protected sections.
+
     Role-based access is handled separately by view decorators.
     """
 
@@ -12,6 +13,8 @@ class RoleProtectionMiddleware:
         "/inventory/",
         "/orders/",
         "/reports/",
+        "/suppliers/",
+        "/products/",
     )
 
     def __init__(self, get_response):

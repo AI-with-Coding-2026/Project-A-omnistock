@@ -296,6 +296,45 @@ class OrderItemCreationTests(TestCase):
             ).exists()
         )
 
+    def test_order_creation_rejects_quantity_above_stock(self):
+        self.login()
+
+        product = Product.objects.create(
+            sku="TEST-001",
+            supplier=self.supplier,
+            name="Test Product", 
+            unit_price=Decimal("10.00"), 
+            stock_quantity=5,
+            reorder_level=2,
+        )
+        
+        customer = Customer.objects.create(
+            name="Test Customer",
+            email="test.customer@example.com",
+        )
+
+        initial_order_count = Order.objects.count()
+        initial_item_count = OrderItem.objects.count()
+
+        response = self.client.post(
+            reverse("order_create"),
+            {
+                "customer": str(customer.pk),
+                "items[][product]": str(product.pk),
+                "items[][quantity]": "6",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        product.refresh_from_db()
+
+        self.assertEqual(product.stock_quantity, 5)
+        self.assertEqual(Order.objects.count(), initial_order_count)
+        self.assertEqual(OrderItem.objects.count(), initial_item_count)
+
+        self.assertContains(response, "Insufficient stock")
+
     def test_uses_database_price_not_browser_value(self):
         self.login()
 
@@ -961,7 +1000,7 @@ class OrderDetailTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_user_without_an_allowed_role_is_redirected(self):
+    def test_user_without_an_allowed_role_is_forbidden(self):
         unauthorized_user = User.objects.create_user(
             username='unauthorized_user',
             password='testpass123',
@@ -972,11 +1011,7 @@ class OrderDetailTests(TestCase):
         detail_url = reverse('order_detail', args=[self.order.pk])
         response = self.client.get(detail_url)
 
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(
-            response.url,
-            f'{reverse("login")}?next={detail_url}',
-        )
+        self.assertEqual(response.status_code, 403)
 
 
 class OrderIndexTests(TestCase):
@@ -1025,17 +1060,12 @@ class OrderIndexTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_customer_is_redirected_to_login(self):
+    def test_customer_is_forbidden(self):
         self.client.force_login(self.customer)
-
         order_index_url = reverse('order_index')
         response = self.client.get(order_index_url)
 
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(
-            response.url,
-            f'{reverse("login")}?next={order_index_url}',
-        )
+        self.assertEqual(response.status_code, 403)
 
     def test_filter_by_status(self):
         completed = Order.objects.create(
@@ -1128,7 +1158,7 @@ class InvoicePdfTests(TestCase):
             reverse('invoice_pdf', args=[self.order.pk])
         )
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
 
     def test_invoice_pdf_template_renders_order_data(self):
         self.product.sku = 'PDF-SKU-001'
@@ -1990,7 +2020,6 @@ class OrderAdvancedSearchAndFilterTests(TestCase):
         )
         self.client.force_login(self.staff_user)
 
-        # Ø¥Ù†Ø´Ø§Ø¡ Supplier ØªØ¬Ø±ÙŠØ¨ÙŠ Ù„Ù„Ø§Ø®ØªØ¨Ø§Ø±
         self.supplier = Supplier.objects.create(
             name='Test Supplier Tech',
             contact_email='supplier@test.com',
