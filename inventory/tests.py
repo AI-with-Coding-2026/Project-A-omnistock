@@ -7,6 +7,9 @@ from django.urls import reverse
 from orders.models import Order, OrderItem
 from .models import InvalidPurchaseOrderTransitionError, Product, PurchaseOrder, PurchaseOrderItem, Supplier
 
+from django.db import IntegrityError, transaction
+from unittest.mock import patch
+
 User = get_user_model()
 
 
@@ -1343,6 +1346,161 @@ class SupplierPortalPOResponseTests(TestCase):
         self.assertRedirects(response, reverse('supplier_portal_po_list'))
         self.po_a.refresh_from_db()
         self.assertEqual(self.po_a.status, PurchaseOrder.STATUS_RECEIVED)
+        
+from django.core import mail
+from django.test import override_settings
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class POEmailNotificationTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='admin_email_test', password='TestPass123!', role='ADMIN',
+            email='admin@omnistock.demo',
+        )
+        self.supplier = Supplier.objects.create(
+            name='Notify Co', email='notify@supplier.test', phone='543214367'
+        )
+        self.product = Product.objects.create(
+            sku='NOTE-001', name='Notify Widget', supplier=self.supplier,
+            unit_price=Decimal('10.00'), stock_quantity=50, reorder_level=5,
+        )
+        self.supplier_user = User.objects.create_user(
+            username='notify_supplier_user', password='TestPass123!', role='SUPPLIER'
+        )
+        self.supplier.user = self.supplier_user
+        self.supplier.save()
+
+    def test_po_creation_sends_supplier_notification(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier, created_by=self.admin,
+            status=PurchaseOrder.STATUS_PENDING,
+        )
+        from inventory.services import send_po_issued_notification
+        with self.captureOnCommitCallbacks(execute=True):
+            send_po_issued_notification(po)
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertIn(po.po_number, sent.subject)
+        self.assertEqual(sent.to, ['notify@supplier.test'])
+        self.assertIn(po.po_number, sent.body)
+
+    def test_po_creation_view_sends_supplier_notification(self):
+        self.client.force_login(self.admin)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse('purchase_order_create'), {
+                'supplier': self.supplier.id,
+                'items[][product]': [str(self.product.id)],
+                'items[][quantity]': ['5'],
+                'items[][unit_cost]': ['9.50'],
+            })
+        self.assertRedirects(response, reverse('purchase_order_list'))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['notify@supplier.test'])
+
+    def test_accept_sends_response_email_to_creator(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier, created_by=self.admin,
+            status=PurchaseOrder.STATUS_PENDING,
+        )
+        self.client.force_login(self.supplier_user)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse('supplier_portal_po_accept', args=[po.pk]))
+        self.assertRedirects(response, reverse('supplier_portal_po_list'))
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ['admin@omnistock.demo'])
+        self.assertIn('accepted', sent.subject)
+        self.assertIn(po.po_number, sent.body)
+
+    def test_reject_sends_response_email_to_creator(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier, created_by=self.admin,
+            status=PurchaseOrder.STATUS_PENDING,
+        )
+        self.client.force_login(self.supplier_user)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse('supplier_portal_po_reject', args=[po.pk]))
+        self.assertRedirects(response, reverse('supplier_portal_po_list'))
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ['admin@omnistock.demo'])
+        self.assertIn('rejected', sent.subject)
+
+    def test_no_email_when_supplier_email_blank(self):
+        from inventory.services import _send_after_commit
+        with self.captureOnCommitCallbacks(execute=True):
+            _send_after_commit('Test subject', 'Test body', '')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_accept_does_not_send_email_when_not_pending(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier, created_by=self.admin,
+            status=PurchaseOrder.STATUS_APPROVED,
+        )
+        self.client.force_login(self.supplier_user)
+        self.client.post(reverse('supplier_portal_po_accept', args=[po.pk]))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_reject_does_not_send_email_when_not_pending(self):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier, created_by=self.admin,
+            status=PurchaseOrder.STATUS_PENDING,
+        )
+        PurchaseOrder.objects.filter(pk=po.pk).update(status=PurchaseOrder.STATUS_RECEIVED)
+        po.refresh_from_db()
+        self.client.force_login(self.supplier_user)
+        self.client.post(reverse('supplier_portal_po_reject', args=[po.pk]))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_send_failure_is_logged_and_does_not_break_workflow(self):
+        """
+        A send_mail() failure must be caught and logged, not raised, so a
+        PO action (e.g. Accept) still succeeds even if email delivery fails.
+        """
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier, created_by=self.admin,
+            status=PurchaseOrder.STATUS_PENDING,
+        )
+        self.client.force_login(self.supplier_user)
+
+        with patch('inventory.services.send_mail', side_effect=Exception('SMTP down')):
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(reverse('supplier_portal_po_accept', args=[po.pk]))
+
+        self.assertRedirects(response, reverse('supplier_portal_po_list'))
+        po.refresh_from_db()
+        self.assertEqual(po.status, PurchaseOrder.STATUS_APPROVED)
+
+        # No email actually landed in the outbox, since sending failed.
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_on_commit_email_not_sent_on_rollback(self):
+        """
+        If the surrounding transaction is rolled back, the scheduled
+        on_commit() email must never fire.
+        """
+        from inventory.services import send_po_issued_notification
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                po = PurchaseOrder.objects.create(
+                    supplier=self.supplier, created_by=self.admin,
+                    status=PurchaseOrder.STATUS_PENDING,
+                )
+                send_po_issued_notification(po)
+                # Force the transaction to fail after scheduling the email,
+                # so it rolls back and on_commit() should never fire.
+                PurchaseOrder.objects.create(
+                    supplier=self.supplier, created_by=self.admin,
+                    status=PurchaseOrder.STATUS_PENDING,
+                    po_number=po.po_number,  # duplicate PO number -> IntegrityError
+                )
+
+        self.assertEqual(len(mail.outbox), 0)
 
 class PurchaseOrderDeliveryTests(TestCase):
     def setUp(self):
