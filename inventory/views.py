@@ -152,26 +152,41 @@ def product_delete(request, pk):
 
 @staff_or_admin_required
 def supplier_list(request):
-    """
-    Supplier index page - read-only view accessible by all staff roles.
-    Sales Rep can view but not create/edit (buttons hidden via can_manage_suppliers).
-    Supports search by name/email and shows product count per supplier.
-    """
-    q = request.GET.get('q', '').strip()
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "all")
     role = request.user.role
-    suppliers = Supplier.objects.annotate(product_count=Count('products'))
+
+    suppliers = Supplier.objects.annotate(
+        product_count=Count("products")
+    )
+
+    if status == "active":
+        suppliers = suppliers.filter(is_active=True)
+    elif status == "inactive":
+        suppliers = suppliers.filter(is_active=False)
 
     if q:
         suppliers = suppliers.filter(
-            Q(name__icontains=q) | Q(email__icontains=q)
+            Q(name__icontains=q)
+            | Q(email__icontains=q)
+            | Q(phone__icontains=q)
+            | Q(address__icontains=q)
         )
 
-    return render(request, 'inventory/supplier_list.html', {
-        'suppliers': suppliers,
-        'q': q,
-        'is_admin': role == 'ADMIN',
-        'can_manage_suppliers': role in ('ADMIN', 'INVENTORY_MANAGER'),
-    })
+    return render(
+        request,
+        "inventory/supplier_list.html",
+        {
+            "suppliers": suppliers,
+            "q": q,
+            "status": status,
+            "is_admin": role == "ADMIN",
+            "can_manage_suppliers": role in (
+                "ADMIN",
+                "INVENTORY_MANAGER",
+            ),
+        },
+    )
 
 
 @admin_or_inventory_manager_required
@@ -242,6 +257,22 @@ def purchase_order_list(request):
         'is_admin': request.user.role == 'ADMIN',
     })
 
+@admin_or_inventory_manager_required
+@require_POST
+def purchase_order_deliver(request, pk):
+    purchase_order = get_object_or_404(PurchaseOrder, pk=pk)
+
+    try:
+        purchase_order.mark_delivered()
+        messages.success(
+            request,
+            f"Purchase order {purchase_order.po_number} marked as "
+            "Delivered. Stock updated successfully.",
+        )
+    except InvalidPurchaseOrderTransitionError as error:
+        messages.error(request, str(error))
+
+    return redirect("purchase_order_list")
 
 @admin_or_inventory_manager_required
 @transaction.atomic

@@ -1456,48 +1456,377 @@ class POEmailNotificationTests(TestCase):
         self.client.post(reverse('supplier_portal_po_reject', args=[po.pk]))
         self.assertEqual(len(mail.outbox), 0)
 
-def test_send_failure_is_logged_and_does_not_break_workflow(self):
-    """
-    A send_mail() failure must be caught and logged, not raised, so a
-    PO action (e.g. Accept) still succeeds even if email delivery fails.
-    """
-    po = PurchaseOrder.objects.create(
-        supplier=self.supplier, created_by=self.admin,
-        status=PurchaseOrder.STATUS_PENDING,
-    )
-    self.client.force_login(self.supplier_user)
+    def test_send_failure_is_logged_and_does_not_break_workflow(self):
+        """
+        A send_mail() failure must be caught and logged, not raised, so a
+        PO action (e.g. Accept) still succeeds even if email delivery fails.
+        """
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier, created_by=self.admin,
+            status=PurchaseOrder.STATUS_PENDING,
+        )
+        self.client.force_login(self.supplier_user)
 
-    with patch('inventory.services.send_mail', side_effect=Exception('SMTP down')):
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(reverse('supplier_portal_po_accept', args=[po.pk]))
+        with patch('inventory.services.send_mail', side_effect=Exception('SMTP down')):
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(reverse('supplier_portal_po_accept', args=[po.pk]))
 
-    self.assertRedirects(response, reverse('supplier_portal_po_list'))
-    po.refresh_from_db()
-    self.assertEqual(po.status, PurchaseOrder.STATUS_APPROVED)
+        self.assertRedirects(response, reverse('supplier_portal_po_list'))
+        po.refresh_from_db()
+        self.assertEqual(po.status, PurchaseOrder.STATUS_APPROVED)
 
-    # No email actually landed in the outbox, since sending failed.
-    self.assertEqual(len(mail.outbox), 0)
+        # No email actually landed in the outbox, since sending failed.
+        self.assertEqual(len(mail.outbox), 0)
 
-def test_on_commit_email_not_sent_on_rollback(self):
-    """
-    If the surrounding transaction is rolled back, the scheduled
-    on_commit() email must never fire.
-    """
-    from inventory.services import send_po_issued_notification
+    def test_on_commit_email_not_sent_on_rollback(self):
+        """
+        If the surrounding transaction is rolled back, the scheduled
+        on_commit() email must never fire.
+        """
+        from inventory.services import send_po_issued_notification
 
-    with self.assertRaises(IntegrityError):
-        with transaction.atomic():
-            po = PurchaseOrder.objects.create(
-                supplier=self.supplier, created_by=self.admin,
-                status=PurchaseOrder.STATUS_PENDING,
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                po = PurchaseOrder.objects.create(
+                    supplier=self.supplier, created_by=self.admin,
+                    status=PurchaseOrder.STATUS_PENDING,
+                )
+                send_po_issued_notification(po)
+                # Force the transaction to fail after scheduling the email,
+                # so it rolls back and on_commit() should never fire.
+                PurchaseOrder.objects.create(
+                    supplier=self.supplier, created_by=self.admin,
+                    status=PurchaseOrder.STATUS_PENDING,
+                    po_number=po.po_number,  # duplicate PO number -> IntegrityError
+                )
+
+        self.assertEqual(len(mail.outbox), 0)
+
+class PurchaseOrderDeliveryTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="delivery_admin",
+            password="password123",
+            role=User.ROLE_ADMIN,
+        )
+        self.inventory_manager = User.objects.create_user(
+            username="delivery_inventory_manager",
+            password="password123",
+            role=User.ROLE_INVENTORY_MANAGER,
+        )
+        self.sales_rep = User.objects.create_user(
+            username="delivery_sales_rep",
+            password="password123",
+            role=User.ROLE_SALES_REP,
+        )
+
+        self.supplier = Supplier.objects.create(
+            name="Delivery Supplier",
+            email="delivery-supplier@example.com",
+            phone="555-0101",
+        )
+
+        self.product = Product.objects.create(
+            supplier=self.supplier,
+            sku="DELIVERY-001",
+            name="Delivery Product",
+            unit_price=Decimal("50.00"),
+            stock_quantity=10,
+            reorder_level=2,
+        )
+
+        self.received_po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+            status=PurchaseOrder.STATUS_RECEIVED,
+        )
+
+        PurchaseOrderItem.objects.create(
+            purchase_order=self.received_po,
+            product=self.product,
+            quantity=5,
+            unit_cost=Decimal("45.00"),
+        )
+
+    def test_received_purchase_order_can_be_delivered(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse(
+                "purchase_order_deliver",
+                args=[self.received_po.pk],
             )
-            send_po_issued_notification(po)
-            # Force the transaction to fail after scheduling the email,
-            # so it rolls back and on_commit() should never fire.
-            PurchaseOrder.objects.create(
-                supplier=self.supplier, created_by=self.admin,
-                status=PurchaseOrder.STATUS_PENDING,
-                po_number=po.po_number,  # duplicate PO number -> IntegrityError
-            )
+        )
 
-    self.assertEqual(len(mail.outbox), 0)
+        self.assertRedirects(
+            response,
+            reverse("purchase_order_list"),
+        )
+
+        self.received_po.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(
+            self.received_po.status,
+            PurchaseOrder.STATUS_DELIVERED,
+        )
+        self.assertEqual(self.product.stock_quantity, 15)
+
+    def test_delivering_purchase_order_twice_does_not_double_stock(self):
+        self.client.force_login(self.admin)
+
+        self.client.post(
+            reverse(
+                "purchase_order_deliver",
+                args=[self.received_po.pk],
+            )
+        )
+
+        second_response = self.client.post(
+            reverse(
+                "purchase_order_deliver",
+                args=[self.received_po.pk],
+            ),
+            follow=True,
+        )
+
+        self.assertEqual(second_response.status_code, 200)
+
+        self.received_po.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(
+            self.received_po.status,
+            PurchaseOrder.STATUS_DELIVERED,
+        )
+        self.assertEqual(self.product.stock_quantity, 15)
+
+    def test_pending_purchase_order_cannot_be_delivered(self):
+        pending_po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+            status=PurchaseOrder.STATUS_PENDING,
+        )
+
+        PurchaseOrderItem.objects.create(
+            purchase_order=pending_po,
+            product=self.product,
+            quantity=4,
+            unit_cost=Decimal("45.00"),
+        )
+
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse(
+                "purchase_order_deliver",
+                args=[pending_po.pk],
+            ),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        pending_po.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(
+            pending_po.status,
+            PurchaseOrder.STATUS_PENDING,
+        )
+        self.assertEqual(self.product.stock_quantity, 10)
+
+    def test_cancelled_purchase_order_cannot_be_delivered(self):
+        cancelled_po = PurchaseOrder.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+            status=PurchaseOrder.STATUS_CANCELLED,
+        )
+
+        PurchaseOrderItem.objects.create(
+            purchase_order=cancelled_po,
+            product=self.product,
+            quantity=4,
+            unit_cost=Decimal("45.00"),
+        )
+
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse(
+                "purchase_order_deliver",
+                args=[cancelled_po.pk],
+            ),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        cancelled_po.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(
+            cancelled_po.status,
+            PurchaseOrder.STATUS_CANCELLED,
+        )
+        self.assertEqual(self.product.stock_quantity, 10)
+
+    def test_sales_rep_cannot_mark_purchase_order_delivered(self):
+        self.client.force_login(self.sales_rep)
+
+        response = self.client.post(
+            reverse(
+                "purchase_order_deliver",
+                args=[self.received_po.pk],
+            )
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+        self.received_po.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(
+            self.received_po.status,
+            PurchaseOrder.STATUS_RECEIVED,
+        )
+        self.assertEqual(self.product.stock_quantity, 10)
+
+    def test_inventory_manager_can_mark_purchase_order_delivered(self):
+        self.client.force_login(self.inventory_manager)
+
+        response = self.client.post(
+            reverse(
+                "purchase_order_deliver",
+                args=[self.received_po.pk],
+            )
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("purchase_order_list"),
+        )
+
+        self.received_po.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(
+            self.received_po.status,
+            PurchaseOrder.STATUS_DELIVERED,
+        )
+        self.assertEqual(self.product.stock_quantity, 15)
+
+    def test_delivery_route_rejects_get_requests(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse(
+                "purchase_order_deliver",
+                args=[self.received_po.pk],
+            )
+        )
+
+        self.assertEqual(response.status_code, 405)
+
+        self.received_po.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(
+            self.received_po.status,
+            PurchaseOrder.STATUS_RECEIVED,
+        )
+        self.assertEqual(self.product.stock_quantity, 10)
+
+
+class SupplierAdvancedFilterTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="supplier_filter_admin",
+            password="password123",
+            role=User.ROLE_ADMIN,
+        )
+
+        self.active_supplier = Supplier.objects.create(
+            name="Alpha Technology",
+            email="alpha@example.com",
+            phone="555-1111",
+            address="10 Main Street",
+            is_active=True,
+        )
+
+        self.inactive_supplier = Supplier.objects.create(
+            name="Beta Distribution",
+            email="beta@example.com",
+            phone="555-2222",
+            address="456 Broad Way",
+            is_active=False,
+        )
+
+        self.client.force_login(self.admin)
+        self.url = reverse("supplier_index")
+
+    def test_active_supplier_filter(self):
+        response = self.client.get(
+            self.url,
+            {"status": "active"},
+        )
+
+        suppliers = list(response.context["suppliers"])
+
+        self.assertEqual(suppliers, [self.active_supplier])
+
+    def test_inactive_supplier_filter(self):
+        response = self.client.get(
+            self.url,
+            {"status": "inactive"},
+        )
+
+        suppliers = list(response.context["suppliers"])
+
+        self.assertEqual(suppliers, [self.inactive_supplier])
+
+    def test_supplier_searches_phone(self):
+        response = self.client.get(
+            self.url,
+            {"q": "555-2222"},
+        )
+
+        suppliers = list(response.context["suppliers"])
+
+        self.assertEqual(suppliers, [self.inactive_supplier])
+
+    def test_supplier_searches_address(self):
+        response = self.client.get(
+            self.url,
+            {"q": "Broad Way"},
+        )
+
+        suppliers = list(response.context["suppliers"])
+
+        self.assertEqual(suppliers, [self.inactive_supplier])
+
+    def test_supplier_status_filter_and_search_work_together(self):
+        response = self.client.get(
+            self.url,
+            {
+                "status": "inactive",
+                "q": "Broad",
+            },
+        )
+
+        suppliers = list(response.context["suppliers"])
+
+        self.assertEqual(suppliers, [self.inactive_supplier])
+
+    def test_supplier_filter_and_search_can_return_no_results(self):
+        response = self.client.get(
+            self.url,
+            {
+                "status": "active",
+                "q": "Broad",
+            },
+        )
+
+        suppliers = list(response.context["suppliers"])
+
+        self.assertEqual(suppliers, [])

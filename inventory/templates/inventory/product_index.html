@@ -11,9 +11,9 @@
 </div>
 {% endif %}
 
-<form method="get" class="mb-4 flex gap-2">
-    <input type="text" name="q" value="{{ q }}" placeholder="Search by name or SKU">
-    <select name="supplier">
+<form method="get" class="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:flex-row sm:flex-wrap sm:items-center">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by name or SKU" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 sm:flex-1">
+    <select name="supplier" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 sm:flex-1">
         <option value="">All suppliers</option>
         {% for s in suppliers %}
         <option value="{{ s.id }}" {% if s.id|stringformat:"s" == selected_supplier %}selected{% endif %}>
@@ -21,46 +21,51 @@
         </option>
         {% endfor %}
     </select>
-    <select name="stock_status">
+    <select name="stock_status" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 sm:flex-1">
         <option value="">All stock statuses</option>
         <option value="low" {% if selected_stock_status == 'low' %}selected{% endif %}>Low Stock</option>
         <option value="in_stock" {% if selected_stock_status == 'in_stock' %}selected{% endif %}>In Stock</option>
     </select>
-    <input type="number" step="0.01" name="min_price" value="{{ min_price }}" placeholder="Min price">
-    <input type="number" step="0.01" name="max_price" value="{{ max_price }}" placeholder="Max price">
-    <button type="submit">Filter</button>
+    <input type="number" step="0.01" name="min_price" value="{{ min_price }}" placeholder="Min price" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 sm:flex-1">
+    <input type="number" step="0.01" name="max_price" value="{{ max_price }}" placeholder="Max price" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 sm:flex-1">
+    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Filter</button>
 </form>
-<table class="table-auto w-full">
-    <thead>
+<table class="min-w-full divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm shadow-sm">
+    <thead class="bg-gray-50">
         <tr>
-            <th>SKU</th><th>Name</th><th>Supplier</th><th>Unit Price</th><th>Stock</th><th>Reorder Level</th><th>Status</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500" >SKU</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500" >Name</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500" >Supplier</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500" >Unit Price</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500" >Stock</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500" >Reorder Level</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500" >Status</th>
         </tr>
     </thead>
-    <tbody>
+    <tbody class="divide-y divide-gray-100 bg-white">
         {% for p in products %}
-        <tr>
-            <td>{{ p.sku }}</td>
-            <td>{{ p.name }}</td>
-            <td>{{ p.supplier.name }}</td>
-            <td>{{ p.unit_price }}</td>
-            <td>{{ p.stock_quantity }}</td>
-            <td>{{ p.reorder_level }}</td>
-            <td>
+        <tr class="transition hover:bg-gray-50">
+            <td class="whitespace-nowrap px-6 py-4 font-medium text-gray-900">{{ p.sku }}</td>
+            <td class="whitespace-nowrap px-6 py-4 font-medium text-gray-900">{{ p.name }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-gray-600">{{ p.supplier.name }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-gray-600">{{ p.unit_price }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-gray-600">{{ p.stock_quantity }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-gray-600">{{ p.reorder_level }}</td>
+            <td class="whitespace-nowrap px-6 py-4">
                 {% if p.is_low_stock %}
-                    <span class="rounded px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800">Low Stock</span>
+                    <span class="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">Low Stock</span>
                 {% else %}
-                    <span class="rounded px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">In Stock</span>
+                    <span class="inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">In Stock</span>
                 {% endif %}
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+
+<div class="flex items-center justify-center gap-4 py-6 text-sm">
     {% if page_obj.has_previous %}  
-        <a href="?page={{ page_obj.previous_page_number }}&{{ querystring }}">Previous</a>
+        <a href="?page={{ page_obj.previous_page_number }}&{{ querystring }}" class="inline-flex items-center rounded-lg border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-50">Previous</a>
     {% endif %}
+    <span class="font-medium text-gray-600">
     Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
     {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&{{ querystring }}">Next</a>
+        <a href="?page={{ page_obj.next_page_number }}&{{ querystring }}" class="inline-flex items-center rounded-lg border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-50">Next</a>
     {% endif %}
+    </div>
 {% endblock %}
