@@ -1000,7 +1000,7 @@ class OrderDetailTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_user_without_an_allowed_role_is_redirected(self):
+    def test_user_without_an_allowed_role_is_forbidden(self):
         unauthorized_user = User.objects.create_user(
             username='unauthorized_user',
             password='testpass123',
@@ -1012,10 +1012,6 @@ class OrderDetailTests(TestCase):
         response = self.client.get(detail_url)
 
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(
-            response.url,
-            f'{reverse("login")}?next={detail_url}',
-        )
 
 
 class OrderIndexTests(TestCase):
@@ -1064,17 +1060,12 @@ class OrderIndexTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_customer_is_redirected_to_login(self):
+    def test_customer_is_forbidden(self):
         self.client.force_login(self.customer)
-
         order_index_url = reverse('order_index')
         response = self.client.get(order_index_url)
 
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(
-            response.url,
-            f'{reverse("login")}?next={order_index_url}',
-        )
 
     def test_filter_by_status(self):
         completed = Order.objects.create(
@@ -1948,7 +1939,7 @@ class OrderStatusTransitionViewTests(TestCase):
         self.client.force_login(self.admin)
         response = self.client.post(reverse('order_cancel', args=[self.completed_order.pk]))
         self.completed_order.refresh_from_db()
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(self.completed_order.status, Order.STATUS_CANCELLED)
 
     def test_staff_cannot_cancel_order(self):
