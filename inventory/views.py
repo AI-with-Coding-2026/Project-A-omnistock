@@ -1,16 +1,19 @@
 import math
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import BooleanField, Case, Count, F, ProtectedError, Q, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from core.utils import (
     admin_or_inventory_manager_required,
     admin_required,
     staff_or_admin_required,
+    supplier_required,
 )
 
 from .forms import ProductForm, SupplierForm
@@ -147,26 +150,41 @@ def product_delete(request, pk):
 
 @staff_or_admin_required
 def supplier_list(request):
-    """
-    Supplier index page - read-only view accessible by all staff roles.
-    Sales Rep can view but not create/edit (buttons hidden via can_manage_suppliers).
-    Supports search by name/email and shows product count per supplier.
-    """
-    q = request.GET.get('q', '').strip()
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "all")
     role = request.user.role
-    suppliers = Supplier.objects.annotate(product_count=Count('products'))
+
+    suppliers = Supplier.objects.annotate(
+        product_count=Count("products")
+    )
+
+    if status == "active":
+        suppliers = suppliers.filter(is_active=True)
+    elif status == "inactive":
+        suppliers = suppliers.filter(is_active=False)
 
     if q:
         suppliers = suppliers.filter(
-            Q(name__icontains=q) | Q(email__icontains=q)
+            Q(name__icontains=q)
+            | Q(email__icontains=q)
+            | Q(phone__icontains=q)
+            | Q(address__icontains=q)
         )
 
-    return render(request, 'inventory/supplier_list.html', {
-        'suppliers': suppliers,
-        'q': q,
-        'is_admin': role == 'ADMIN',
-        'can_manage_suppliers': role in ('ADMIN', 'INVENTORY_MANAGER'),
-    })
+    return render(
+        request,
+        "inventory/supplier_list.html",
+        {
+            "suppliers": suppliers,
+            "q": q,
+            "status": status,
+            "is_admin": role == "ADMIN",
+            "can_manage_suppliers": role in (
+                "ADMIN",
+                "INVENTORY_MANAGER",
+            ),
+        },
+    )
 
 
 @admin_or_inventory_manager_required
@@ -237,6 +255,22 @@ def purchase_order_list(request):
         'is_admin': request.user.role == 'ADMIN',
     })
 
+@admin_or_inventory_manager_required
+@require_POST
+def purchase_order_deliver(request, pk):
+    purchase_order = get_object_or_404(PurchaseOrder, pk=pk)
+
+    try:
+        purchase_order.mark_delivered()
+        messages.success(
+            request,
+            f"Purchase order {purchase_order.po_number} marked as "
+            "Delivered. Stock updated successfully.",
+        )
+    except InvalidPurchaseOrderTransitionError as error:
+        messages.error(request, str(error))
+
+    return redirect("purchase_order_list")
 
 @admin_or_inventory_manager_required
 @transaction.atomic
@@ -419,3 +453,52 @@ def purchase_order_create(request):
         'products': products,
         'title': 'Create Purchase Order',
     })
+
+@supplier_required
+def supplier_portal_po_list(request):
+    supplier = getattr(request.user, 'supplier_profile', None)
+    if supplier is None:
+        return render(request, 'inventory/supplier_portal_no_supplier.html', {}, status=403)
+
+    purchase_orders = PurchaseOrder.objects.filter(
+        supplier=supplier, status=PurchaseOrder.STATUS_PENDING
+    ).select_related('supplier').prefetch_related('items__product')
+
+    return render(request, 'inventory/supplier_portal_po_list.html', {
+        'purchase_orders': purchase_orders,
+    })
+
+@supplier_required
+@require_POST
+def supplier_portal_po_accept(request, pk):
+    supplier = getattr(request.user, 'supplier_profile', None)
+    if supplier is None:
+        raise PermissionDenied
+
+    po = get_object_or_404(PurchaseOrder, pk=pk, supplier=supplier)
+
+    if not po.can_approve():
+        messages.warning(request, f"PO {po.po_number} cannot be accepted from its current status.")
+        return redirect('supplier_portal_po_list')
+
+    po.approve()
+    messages.success(request, f"PO {po.po_number} accepted.")
+    return redirect('supplier_portal_po_list')
+
+@supplier_required
+@require_POST
+def supplier_portal_po_reject(request, pk):
+    supplier = getattr(request.user, 'supplier_profile', None)
+    if supplier is None:
+        raise PermissionDenied
+
+    po = get_object_or_404(PurchaseOrder, pk=pk, supplier=supplier)
+
+    if not po.can_cancel():
+        messages.warning(request, f"PO {po.po_number} cannot be rejected from its current status.")
+        return redirect('supplier_portal_po_list')
+
+    po.cancel()
+    messages.success(request, f"PO {po.po_number} rejected.")
+    return redirect('supplier_portal_po_list')
+

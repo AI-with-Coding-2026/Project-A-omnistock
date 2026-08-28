@@ -3,18 +3,20 @@ from django.db import models
 
 
 class User(AbstractUser):
-    ROLE_ADMIN = "ADMIN"
-    ROLE_CUSTOMER = "CUSTOMER"
-    ROLE_INVENTORY_MANAGER = "INVENTORY_MANAGER"
-    ROLE_SALES_REP = "SALES_REP"
-    ROLE_STAFF = "STAFF"
+    ROLE_ADMIN = 'ADMIN'
+    ROLE_CUSTOMER = 'CUSTOMER'
+    ROLE_INVENTORY_MANAGER = 'INVENTORY_MANAGER'
+    ROLE_SALES_REP = 'SALES_REP'
+    ROLE_STAFF = 'STAFF'
+    ROLE_SUPPLIER = 'SUPPLIER'
 
     ROLE_CHOICES = [
-        (ROLE_ADMIN, "Admin"),
-        (ROLE_CUSTOMER, "Customer"),
-        (ROLE_INVENTORY_MANAGER, "Inventory Manager"),
-        (ROLE_SALES_REP, "Sales Rep"),
-        (ROLE_STAFF, "Staff"),
+        (ROLE_ADMIN, 'Admin'),
+        (ROLE_CUSTOMER, 'Customer'),
+        (ROLE_INVENTORY_MANAGER, 'Inventory Manager'),
+        (ROLE_SALES_REP, 'Sales Rep'),
+        (ROLE_STAFF, 'Staff'),
+        (ROLE_SUPPLIER, 'Supplier'),
     ]
 
     role = models.CharField(
@@ -32,5 +34,6 @@ class User(AbstractUser):
         else:
             self.is_staff = False
             self.is_superuser = False
-
         super().save(*args, **kwargs)
+
+

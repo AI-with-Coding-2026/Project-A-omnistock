@@ -19,6 +19,14 @@ class Supplier(models.Model):
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=50, blank=False , null=False)
     address = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="supplier_profile",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,19 +75,22 @@ class PurchaseOrder(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_APPROVED = 'approved'
     STATUS_RECEIVED = 'received'
+    STATUS_DELIVERED = 'delivered'
     STATUS_CANCELLED = 'cancelled'
 
     STATUS_CHOICES = [
         (STATUS_PENDING, 'Pending'),
         (STATUS_APPROVED, 'Approved'),
         (STATUS_RECEIVED, 'Received'),
+        (STATUS_DELIVERED, 'Delivered'),
         (STATUS_CANCELLED, 'Cancelled'),
     ]
 
     VALID_TRANSITIONS = {
         STATUS_PENDING: {STATUS_APPROVED, STATUS_CANCELLED},
         STATUS_APPROVED: {STATUS_RECEIVED, STATUS_CANCELLED},
-        STATUS_RECEIVED: set(),
+        STATUS_RECEIVED: {STATUS_DELIVERED},
+        STATUS_DELIVERED: set(),
         STATUS_CANCELLED: set(),
     }
 
@@ -101,6 +112,9 @@ class PurchaseOrder(models.Model):
 
     def can_receive(self):
         return self.status == self.STATUS_APPROVED
+
+    def can_deliver(self):
+        return self.can_transition_to(self.STATUS_DELIVERED)
 
     def can_cancel(self):
         return self.status in [self.STATUS_PENDING, self.STATUS_APPROVED]
@@ -142,6 +156,29 @@ class PurchaseOrder(models.Model):
         self.status = self.STATUS_RECEIVED
         if save:
             self.save(update_fields=['status', 'updated_at'])
+
+    @transaction.atomic
+    def mark_delivered(self):
+        po = PurchaseOrder.objects.select_for_update().get(pk=self.pk)
+
+        if not po.can_deliver():
+            raise InvalidPurchaseOrderTransitionError(
+            f"Cannot transition purchase order "
+            f"#{po.pk or po.po_number} from "
+            f"'{po.status}' to '{self.STATUS_DELIVERED}'."
+            )
+
+        po.status = self.STATUS_DELIVERED
+        po.save(update_fields=["status", "updated_at"])
+
+        for item in po.items.all():
+            Product.objects.filter(pk=item.product_id).update(
+                stock_quantity=F("stock_quantity") + item.quantity
+            )
+
+        self.status = po.status
+        self.updated_at = po.updated_at
+
 
     def cancel(self, save=True):
         if not self.can_cancel():

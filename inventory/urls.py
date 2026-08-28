@@ -16,4 +16,12 @@ urlpatterns = [
 
     path('purchase-orders/', views.purchase_order_list, name='purchase_order_list'),
     path('purchase-orders/create/', views.purchase_order_create, name='purchase_order_create'),
+    path(
+    'purchase-orders/<int:pk>/deliver/',
+    views.purchase_order_deliver,
+    name='purchase_order_deliver',),
+
+    path('supplier-portal/purchase-orders/', views.supplier_portal_po_list, name='supplier_portal_po_list'),
+    path('supplier-portal/purchase-orders/<int:pk>/accept/', views.supplier_portal_po_accept, name='supplier_portal_po_accept'),
+    path('supplier-portal/purchase-orders/<int:pk>/reject/', views.supplier_portal_po_reject, name='supplier_portal_po_reject'),
 ]

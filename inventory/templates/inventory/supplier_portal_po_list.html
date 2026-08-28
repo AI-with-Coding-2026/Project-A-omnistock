@@ -1,0 +1,77 @@
+{% extends "core/base.html" %}
+
+{% block title %}My Purchase Orders - OmniStock{% endblock %}
+{% block page_title %}My Purchase Orders{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900">My Purchase Orders</h2>
+        <p class="mt-1 text-sm text-gray-500">Review and respond to purchase orders addressed to you.</p>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        {% if purchase_orders %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
+                        <tr>
+                            <th class="px-6 py-4 font-semibold text-gray-600">PO Number</th>
+                            <th class="px-6 py-4 font-semibold text-gray-600">Status</th>
+                            <th class="px-6 py-4 font-semibold text-gray-600">Created</th>
+                            <th class="px-6 py-4 font-semibold text-gray-600">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for po in purchase_orders %}
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-6 py-4 font-semibold text-gray-900">{{ po.po_number }}</td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">Pending</span>
+                                </td>
+                                <td class="px-6 py-4 text-gray-500 whitespace-nowrap">{{ po.created_at|date:"M d, Y H:i" }}</td>
+                                <td class="px-6 py-4">
+                                    <div class="flex gap-2">
+                                        <form method="post" action="{% url 'supplier_portal_po_accept' po.pk %}">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                    class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-100 text-green-800 hover:bg-green-200 transition-colors">
+                                                Accept
+                                            </button>
+                                        </form>
+                                        <form method="post" action="{% url 'supplier_portal_po_reject' po.pk %}">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                    class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-800 hover:bg-red-200 transition-colors">
+                                                Reject
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="px-6 py-16 text-center">
+                <div class="mx-auto w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                    <svg class="w-6 h-6" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+                        <path d="M3 3h14v14H3z"/><path d="M7 8h6M7 11h6M7 14h3"/>
+                    </svg>
+                </div>
+                <h3 class="mt-4 text-lg font-semibold text-gray-900">No pending purchase orders</h3>
+                <p class="mt-1 text-sm text-gray-500">You're all caught up — nothing awaiting a response.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

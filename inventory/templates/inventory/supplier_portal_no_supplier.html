@@ -1,0 +1,16 @@
+{% extends "core/base.html" %}
+
+{% block title %}Access Restricted - OmniStock{% endblock %}
+{% block page_title %}Access Restricted{% endblock %}
+
+{% block content %}
+<div class="bg-white border border-gray-200 rounded-xl shadow-sm px-6 py-16 text-center">
+    <div class="mx-auto w-14 h-14 rounded-full bg-red-50 flex items-center justify-center text-red-400">
+        <svg class="w-6 h-6" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M10 6v4M10 14h.01M3 10a7 7 0 1 1 14 0 7 7 0 0 1-14 0z"/>
+        </svg>
+    </div>
+    <h3 class="mt-4 text-lg font-semibold text-gray-900">No linked supplier account</h3>
+    <p class="mt-1 text-sm text-gray-500">Your account isn't linked to a supplier record. Contact your account administrator for access.</p>
+</div>
+{% endblock %}
