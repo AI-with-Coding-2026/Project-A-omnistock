@@ -5,6 +5,7 @@ from django.urls import reverse
 class RoleProtectionMiddleware:
     """
     Redirect anonymous users away from protected sections.
+
     Role-based access is handled separately by view decorators.
     """
 
@@ -19,12 +20,11 @@ class RoleProtectionMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
-    def __call__(self, request): 
-        if ( 
-                request.path.startswith(self.PROTECTED_PREFIXES) 
-                and not request.user.is_authenticated 
-            ):
-                login_url = reverse("login") 
-                return redirect(f"{login_url}?next={request.path}")
+    def __call__(self, request):
+        is_protected = request.path.startswith(self.PROTECTED_PREFIXES)
 
-            return self.get_response(request)
+        if is_protected and not request.user.is_authenticated:
+            login_url = reverse("login")
+            return redirect(f"{login_url}?next={request.path}")
+
+        return self.get_response(request)
