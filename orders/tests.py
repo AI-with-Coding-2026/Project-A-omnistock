@@ -304,15 +304,15 @@ class OrderItemCreationTests(TestCase):
                 unit_price=Decimal('250.50'),
             ).exists()
         )
-        
+
     def test_order_creation_rejects_quantity_above_stock(self):
+        self.login()
+
         product = Product.objects.create(
-            name="Test Product",
-            sku="TEST-001",
-            unit_price=Decimal("10.00"),
+            supplier=self.supplier,
+            name="Test Product", 
+            unit_price=Decimal("10.00"), 
             stock_quantity=5,
-            reorder_level=2,
-            # add any other required Product fields
         )
 
         initial_order_count = Order.objects.count()
@@ -321,9 +321,7 @@ class OrderItemCreationTests(TestCase):
         response = self.client.post(
             reverse("order_create"),
             {
-                # include the required OrderForm fields
                 "customer_name": "Test Customer",
-
                 "items[][product]": str(product.pk),
                 "items[][quantity]": "6",
             },

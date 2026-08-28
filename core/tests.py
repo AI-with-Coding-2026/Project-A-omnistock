@@ -478,10 +478,10 @@ class RouteProtectionTests(TestCase):
             role=User.ROLE_ADMIN,
         )
 
-        self.sales_rep = User.objects.create_user(
-            username="protection_sales",
+        self.customer = User.objects.create_user(
+            username="protection_customer",
             password="password123",
-            role=User.ROLE_SALES_REP,
+            role=User.ROLE_CUSTOMER,
         )
 
     def test_anonymous_user_is_redirected_to_login(self):
@@ -493,22 +493,21 @@ class RouteProtectionTests(TestCase):
             f"{reverse('login')}?next={reverse('product_list')}",
         )
 
-    def test_authenticated_authorized_user_can_access_products(self):
+    def test_anonymous_user_can_access_login_page(self):
+        response = self.client.get(reverse("login"))
+
+        self.assertNotEqual(response.status_code, 302)
+
+    def test_authenticated_admin_can_access_products(self):
         self.client.force_login(self.admin)
 
         response = self.client.get(reverse("product_list"))
 
         self.assertEqual(response.status_code, 200)
 
-    def test_authenticated_user_is_allowed_through_middleware(self):
-        self.client.force_login(self.sales_rep)
+    def test_authenticated_customer_is_forbidden_from_products(self):
+        self.client.force_login(self.customer)
 
         response = self.client.get(reverse("product_list"))
 
-        self.assertEqual(response.status_code, 200)
-
-    def test_anonymous_user_can_access_public_login(self):
-        response = self.client.get(reverse("login"))
-
-        self.assertNotEqual(response.status_code, 302)
-
+        self.assertEqual(response.status_code, 403)
