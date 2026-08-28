@@ -1833,26 +1833,26 @@ class SupplierAdvancedFilterTests(TestCase):
 
         self.assertEqual(suppliers, [])
 
+
 class ProductPriceValidationTests(TestCase):
 
     def setUp(self):
         self.supplier = Supplier.objects.create(
             name="Test Supplier",
             email="supplier@test.com",
-            phone="123456789"
-    )
+            phone="123456789",
+        )
 
         self.user = User.objects.create_user(
             username="testadmin",
             password="password123",
             role="ADMIN",
-    )
+        )
 
         self.client.login(
             username="testadmin",
-            password="password123"
-    )
-
+            password="password123",
+        )
 
     def test_form_rejects_negative_price(self):
         form = ProductForm(data={
@@ -1866,7 +1866,7 @@ class ProductPriceValidationTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn(
             "Unit price must be greater than 0.",
-            form.errors["unit_price"]
+            form.errors["unit_price"],
         )
 
     def test_form_rejects_zero_price(self):
@@ -1881,7 +1881,7 @@ class ProductPriceValidationTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn(
             "Unit price must be greater than 0.",
-            form.errors["unit_price"]
+            form.errors["unit_price"],
         )
 
     def test_form_accepts_positive_price(self):
@@ -1938,11 +1938,12 @@ class ProductPriceValidationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            "Unit price must be greater than 0."
+            "Unit price must be greater than 0.",
         )
         self.assertFalse(
             Product.objects.filter(name="HTTP Keyboard").exists()
         )
+
     def test_product_update_rejects_negative_price_through_http(self):
         product = Product.objects.create(
             supplier=self.supplier,
@@ -1966,8 +1967,30 @@ class ProductPriceValidationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            "Unit price must be greater than 0."
+            "Unit price must be greater than 0.",
         )
 
         product.refresh_from_db()
         self.assertEqual(product.unit_price, Decimal("25.00"))
+
+    def test_direct_orm_rejects_negative_price(self):
+        with self.assertRaises(IntegrityError):
+            Product.objects.create(
+                supplier=self.supplier,
+                sku="ORM-NEGATIVE-001",
+                name="ORM Negative Product",
+                unit_price=Decimal("-1.00"),
+                stock_quantity=5,
+                reorder_level=1,
+            )
+
+    def test_direct_orm_rejects_zero_price(self):
+        with self.assertRaises(IntegrityError):
+            Product.objects.create(
+                supplier=self.supplier,
+                sku="ORM-ZERO-001",
+                name="ORM Zero Product",
+                unit_price=Decimal("0.00"),
+                stock_quantity=5,
+                reorder_level=1,
+            )

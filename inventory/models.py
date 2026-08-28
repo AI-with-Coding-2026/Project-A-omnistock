@@ -67,6 +67,12 @@ class Product(models.Model):
 
     class Meta:
         ordering = ['name']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(unit_price__gt=0),
+                name='product_unit_price_gt_zero',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.name} ({self.sku})'
