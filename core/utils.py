@@ -36,12 +36,33 @@ def admin_or_inventory_manager_required(view_func):
     return _wrapped
 
 def staff_or_admin_required(view_func):
-    """Allow any authenticated staff-type or admin user."""
-    return user_passes_test(
-        lambda u: u.is_authenticated and getattr(u, 'role', None) in [
-            'ADMIN', 'STAFF', 'INVENTORY_MANAGER', 'SALES_REP'
+    """Allow authenticated staff-type or admin users."""
+
+    def check_role(user):
+        if not user.is_authenticated:
+            return False
+
+        return getattr(user, 'role', None) in [
+            'ADMIN',
+            'STAFF',
+            'INVENTORY_MANAGER',
+            'SALES_REP',
         ]
-    )(view_func)
+
+    def wrapped_view(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
+            from django.urls import reverse
+
+            login_url = reverse('login')
+            return redirect(f'{login_url}?next={request.path}')
+
+        if not check_role(request.user):
+            raise PermissionDenied
+
+        return view_func(request, *args, **kwargs)
+
+    return wrapped_view
 
 def supplier_required(view_func):
     """
