@@ -1840,7 +1840,19 @@ class ProductPriceValidationTests(TestCase):
             name="Test Supplier",
             email="supplier@test.com",
             phone="123456789"
-        )
+    )
+
+        self.user = User.objects.create_user(
+            username="testadmin",
+            password="password123",
+            role="ADMIN",
+    )
+
+        self.client.login(
+            username="testadmin",
+            password="password123"
+    )
+
 
     def test_form_rejects_negative_price(self):
         form = ProductForm(data={
@@ -1911,3 +1923,51 @@ class ProductPriceValidationTests(TestCase):
         with self.assertRaises(ValidationError):
             product.full_clean()
 
+    def test_product_create_rejects_zero_price_through_http(self):
+        response = self.client.post(
+            reverse("product_create"),
+            {
+                "supplier": self.supplier.id,
+                "name": "HTTP Keyboard",
+                "unit_price": "0.00",
+                "stock_quantity": 10,
+                "reorder_level": 5,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Unit price must be greater than 0."
+        )
+        self.assertFalse(
+            Product.objects.filter(name="HTTP Keyboard").exists()
+        )
+    def test_product_update_rejects_negative_price_through_http(self):
+        product = Product.objects.create(
+            supplier=self.supplier,
+            name="HTTP Mouse",
+            unit_price=Decimal("25.00"),
+            stock_quantity=5,
+            reorder_level=1,
+        )
+
+        response = self.client.post(
+            reverse("product_update", args=[product.pk]),
+            {
+                "supplier": self.supplier.id,
+                "name": "HTTP Mouse",
+                "unit_price": "-10.00",
+                "stock_quantity": 5,
+                "reorder_level": 1,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Unit price must be greater than 0."
+        )
+
+        product.refresh_from_db()
+        self.assertEqual(product.unit_price, Decimal("25.00"))
