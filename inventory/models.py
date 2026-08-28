@@ -1,3 +1,5 @@
+from decimal import Decimal
+from django.core.validators import MinValueValidator    
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -46,7 +48,18 @@ class Product(models.Model):
     sku = models.CharField(max_length=50, unique=True, blank=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    unit_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[
+            MinValueValidator(
+                Decimal("0.01"),
+                message="Unit price must be greater than 0."
+            )
+        ],
+    )
+
     stock_quantity = models.IntegerField(default=0)
     reorder_level = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -54,6 +67,12 @@ class Product(models.Model):
 
     class Meta:
         ordering = ['name']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(unit_price__gt=0),
+                name='product_unit_price_gt_zero',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.name} ({self.sku})'
