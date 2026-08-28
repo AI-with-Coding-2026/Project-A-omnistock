@@ -14,6 +14,109 @@ from core.utils import (
 )
 
 
+class LandingAndAuthRoutingTests(TestCase):
+    """
+    Covers PR #66 review requirements:
+    root routing, dashboard redirect, and auth redirect behavior.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = User.objects.create_user(
+            username="admin_route_test",
+            password="StrongPass123!",
+            role=User.ROLE_ADMIN,
+        )
+
+    # 1. Anonymous GET / returns the landing page
+    def test_anonymous_get_root_returns_landing_page(self):
+        response = self.client.get(reverse('landing'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/landing.html')
+
+    # 2. Authenticated GET / has explicit intended behavior
+    # (decided: redirect straight to dashboard)
+    def test_authenticated_get_root_redirects_to_dashboard(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('landing'))
+        self.assertRedirects(response, reverse('dashboard'))
+
+    # 3. Anonymous GET /dashboard/ redirects to login
+    def test_anonymous_get_dashboard_redirects_to_login(self):
+        response = self.client.get(reverse('dashboard'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response.url)
+
+    # 4. Authenticated GET /dashboard/ renders the dashboard
+    def test_authenticated_get_dashboard_renders(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/dashboard.html')
+
+    # 5. Successful login redirects to /dashboard/
+    def test_successful_login_redirects_to_dashboard(self):
+        response = self.client.post(reverse('login'), {
+            'username': 'admin_route_test',
+            'password': 'StrongPass123!',
+        })
+        self.assertRedirects(response, reverse('dashboard'))
+
+    # 6. Logout has the intended redirect destination
+    def test_logout_redirects_to_login(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('logout'))
+        self.assertRedirects(response, reverse('login'))
+        # 7. Existing Products, Suppliers, Purchase Orders, Orders, Reports
+    # routes still resolve for an authorized (admin) user
+    def test_existing_module_routes_still_resolve(self):
+        self.client.force_login(self.admin)
+
+        routes = [
+            'product_list',
+            'supplier_index',
+            'purchase_order_list',
+            'order_list',
+            'reports',
+        ]
+
+        for name in routes:
+            with self.subTest(route=name):
+                response = self.client.get(reverse(name))
+                self.assertEqual(response.status_code, 200)
+
+    # 8. Role-specific sidebar visibility/access remains correct
+    def test_sidebar_links_visible_for_admin(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('dashboard'))
+        self.assertContains(response, 'Purchase Orders')
+        self.assertContains(response, 'Reports')
+        self.assertNotContains(response, 'Products (View)')
+
+    def test_sidebar_links_hidden_for_sales_rep(self):
+        sales_rep = User.objects.create_user(
+            username="sales_route_test",
+            password="StrongPass123!",
+            role=User.ROLE_SALES_REP,
+        )
+        self.client.force_login(sales_rep)
+        response = self.client.get(reverse('order_list'))
+        self.assertContains(response, 'Products (View)')
+        self.assertContains(response, 'Suppliers (View)')
+        self.assertNotContains(response, 'Purchase Orders')
+        self.assertNotContains(response, 'Reports')
+
+    def test_sidebar_links_for_inventory_manager(self):
+        manager = User.objects.create_user(
+            username="manager_route_test",
+            password="StrongPass123!",
+            role=User.ROLE_INVENTORY_MANAGER,
+        )
+        self.client.force_login(manager)
+        response = self.client.get(reverse('product_list'))
+        self.assertContains(response, 'Purchase Orders')
+        self.assertNotContains(response, 'Reports')
+        
 class RoleBasedLoginViewTests(TestCase):
     def setUp(self):
         self.customer = User.objects.create_user(

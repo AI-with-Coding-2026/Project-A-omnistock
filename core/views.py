@@ -1,5 +1,5 @@
 from django.contrib.auth.views import LoginView, LogoutView
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.db.models import F, Sum
 
@@ -75,6 +75,16 @@ def get_monthly_revenue():
         .annotate(total=Sum('total_amount'))
         .order_by('month')
     )
+
+
+def landing(request):
+    """
+    Public homepage. Authenticated users are sent straight to their
+    dashboard; anonymous visitors see the marketing landing page.
+    """
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    return render(request, 'core/landing.html')
 
 
 @staff_or_admin_required
